@@ -276,6 +276,16 @@ sensor_msgs::msg::CameraInfo UVCCameraDriver::getCameraInfo() {
   const auto& result = future.get();
   camera_info_ = result->info;
   camera_info_->header.frame_id = config_.optical_frame_id;
+  float cx_raw = camera_info_->k[2];
+  camera_info_->k[0] *= 1.33;
+  camera_info_->k[2] = (cx_raw - 80)*1.33;
+  camera_info_->k[4] *= 1.33;
+  camera_info_->k[5] *= 1.33;
+  camera_info_->p[0] *= 1.33;
+  camera_info_->p[2] = (cx_raw - 80)*1.33;
+  camera_info_->p[5] *= 1.33;
+  camera_info_->p[6] *= 1.33;
+  camera_info_->p[11] = 0;
   return result->info;
 }
 
@@ -368,6 +378,8 @@ void UVCCameraDriver::frameCallback(uvc_frame_t* frame) {
     camera_info_->header.stamp = node_->now();
     camera_info_->height = image.height;
     camera_info_->width = image.width;
+    // RCLCPP_INFO(logger_, "camera_info->p[11]: %f", camera_info_->p[11]);
+    
     camera_info_publisher_->publish(*camera_info_);
   }
   image_publisher_.publish(image);
