@@ -25,6 +25,8 @@ find_package(image_geometry REQUIRED)
 find_package(image_publisher REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(libuvc REQUIRED)
+set(libuvc_INCLUDE_DIRS "/usr/include/libuvc")
+set(libuvc_LIBRARIES "/usr/lib/x86_64-linux-gnu/libuvc.so")
 find_package(magic_enum REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -38,6 +40,11 @@ find_package(tf2_eigen REQUIRED)
 find_package(tf2_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_sensor_msgs REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_search_module(LIBUVC REQUIRED libuvc)
+if (NOT LIBUVC_FOUND)
+  message(FATAL_ERROR "libuvc is not found")
+endif ()
 
 execute_process(COMMAND uname -m OUTPUT_VARIABLE MACHINES)
 execute_process(COMMAND getconf LONG_BIT OUTPUT_VARIABLE MACHINES_BIT)
@@ -111,7 +118,7 @@ target_link_libraries(${PROJECT_NAME}
   Eigen3::Eigen
   glog::glog
   magic_enum::magic_enum
-  LibUVC::UVCShared
+  ${LIBUVC_LIBRARIES}
   -lOpenNI2
   -L${ORBBEC_OPENNI2_REDIST}
   )
@@ -134,7 +141,7 @@ target_link_libraries(list_devices_node
   Eigen3::Eigen
   glog::glog
   magic_enum::magic_enum
-  LibUVC::UVCShared
+  ${LIBUVC_LIBRARIES}
   -lOpenNI2
   -L${ORBBEC_OPENNI2_REDIST}
   ${PROJECT_NAME}

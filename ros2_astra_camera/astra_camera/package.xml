@@ -28,6 +28,9 @@
   <depend>tf2_ros</depend>
   <depend>tf2_sensor_msgs</depend>
   <depend>tf2</depend>
+  <depend>magic_enum</depend>
+  <depend>libuvc-dev</depend>
+  <depend>libgoogle-glog-dev</depend>
   <export>
     <build_type>ament_cmake</build_type>
   </export>
