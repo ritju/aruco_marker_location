@@ -1,5 +1,5 @@
 /*****************************
- Copyright 2011 Rafael Muñoz Salinas. All rights reserved.
+ Copyright 2011 Rafael Mu?oz Salinas. All rights reserved.
 
  Redistribution and use in source and binary forms, with or without modification, are
  permitted provided that the following conditions are met:
@@ -11,9 +11,9 @@
  of conditions and the following disclaimer in the documentation and/or other materials
  provided with the distribution.
 
- THIS SOFTWARE IS PROVIDED BY Rafael Muñoz Salinas ''AS IS'' AND ANY EXPRESS OR IMPLIED
+ THIS SOFTWARE IS PROVIDED BY Rafael Mu?oz Salinas ''AS IS'' AND ANY EXPRESS OR IMPLIED
  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
- FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL Rafael Muñoz Salinas OR
+ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL Rafael Mu?oz Salinas OR
  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
@@ -23,7 +23,7 @@
 
  The views and conclusions contained in the software and documentation are those of the
  authors and should not be interpreted as representing official policies, either expressed
- or implied, of Rafael Muñoz Salinas.
+ or implied, of Rafael Mu?oz Salinas.
  ********************************/
 /**
  * @file simple_single.cpp
@@ -408,7 +408,6 @@ public:
             tf2::Quaternion q;
             q.setRPY(M_PI/2, 0, M_PI/2);
             cameraToReference.setRotation(q);
-
             if (reference_frame != camera_frame) {
               geometry_msgs::msg::TransformStamped transform_stamped;
               getTransform(reference_frame, camera_frame, transform_stamped);
@@ -596,6 +595,8 @@ public:
       // see the sensor_msgs/CameraInfo documentation for details
       rightToLeft.setIdentity();
       rightToLeft.setOrigin(tf2::Vector3(-msg.p[3] / msg.p[0], -msg.p[7] / msg.p[5], 0.0));
+      // RCLCPP_INFO(this->get_logger(), "****right2left.origin => x: %f, y: %f, z: 0",
+      // -msg.p[3] / msg.p[0], -msg.p[7] / msg.p[5]);
 
       cam_info_received = true;
     }

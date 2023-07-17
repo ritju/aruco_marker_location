@@ -445,6 +445,8 @@ void OBCameraNode::onNewFrameCallback(const openni::VideoFrameRef& frame,
       depth_align_ ? depth_aligned_frame_id_[stream_index] : optical_frame_id_[stream_index];
 
   camera_info_publisher->publish(std::move(camera_info));
+  // RCLCPP_INFO(rclcpp::get_logger("camera"), "Camera pub time is %.10f", timestamp.seconds());
+
 }
 
 void OBCameraNode::setDepthColorSync(bool data) {

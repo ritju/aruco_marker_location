@@ -43,6 +43,7 @@ void CvDrawingUtils::draw3dAxis(cv::Mat& Image, const CameraParameters& CP,
   cv::line(Image, imagePoints[0], imagePoints[1], Scalar(0, 0, 255, 255), 1);
   cv::line(Image, imagePoints[0], imagePoints[2], Scalar(0, 255, 0, 255), 1);
   cv::line(Image, imagePoints[0], imagePoints[3], Scalar(255, 0, 0, 255), 1);
+  cv::circle(Image, imagePoints[0],2, cv::Scalar(255,0,255), 1, cv::LineTypes::LINE_AA);
   putText(Image, "x", imagePoints[1], FONT_HERSHEY_SIMPLEX, 0.6, Scalar(0, 0, 255, 255), 2);
   putText(Image, "y", imagePoints[2], FONT_HERSHEY_SIMPLEX, 0.6, Scalar(0, 255, 0, 255), 2);
   putText(Image, "z", imagePoints[3], FONT_HERSHEY_SIMPLEX, 0.6, Scalar(255, 0, 0, 255), 2);
@@ -72,12 +73,15 @@ void CvDrawingUtils::draw3dAxis(cv::Mat& Image, Marker& m, const CameraParameter
   std::vector<Point2f> imagePoints;
   cv::projectPoints(objectPoints, m.Rvec, m.Tvec, CP.CameraMatrix, CP.Distorsion, imagePoints);
   // draw lines of different colours
+  std::cout << imagePoints[0] << "," << imagePoints[1] << std::endl;
   cv::line(Image, imagePoints[0], imagePoints[1], Scalar(0, 0, 255, 255), lineSize);
   cv::line(Image, imagePoints[0], imagePoints[2], Scalar(0, 255, 0, 255), lineSize);
   cv::line(Image, imagePoints[0], imagePoints[3], Scalar(255, 0, 0, 255), lineSize);
+  cv::circle(Image, imagePoints[0],2, cv::Scalar(0,0,255), 1, cv::LineTypes::LINE_AA);
   putText(Image, "x", imagePoints[1], FONT_HERSHEY_SIMPLEX, 0.6, Scalar(0, 0, 255, 255), 2);
   putText(Image, "y", imagePoints[2], FONT_HERSHEY_SIMPLEX, 0.6, Scalar(0, 255, 0, 255), 2);
   putText(Image, "z", imagePoints[3], FONT_HERSHEY_SIMPLEX, 0.6, Scalar(255, 0, 0, 255), 2);
+  // putText(Image, str(), imagePoints[0] + cv::Point2f(8,0), FONT_HERSHEY_SIMPLEX, 0.6, Scalar(255, 0, 0, 255), 2);
 }
 
 /****
