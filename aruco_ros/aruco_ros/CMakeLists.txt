@@ -61,6 +61,20 @@ target_include_directories(single
 ament_target_dependencies(single ${THIS_PACKAGE_INCLUDE_DEPENDS})
 target_link_libraries(single ${OpenCV_LIBRARIES})
 
+add_executable(test_single src/test_simple_single.cpp
+                      src/aruco_ros_utils.cpp)
+
+target_include_directories(test_single
+  PUBLIC
+  include)
+
+target_include_directories(test_single
+  SYSTEM PUBLIC
+  ${OpenCV_INCLUDE_DIRS}
+)
+ament_target_dependencies(test_single ${THIS_PACKAGE_INCLUDE_DEPENDS})
+target_link_libraries(test_single ${OpenCV_LIBRARIES})
+
 add_executable(double src/simple_double.cpp
                       src/aruco_ros_utils.cpp)
 target_include_directories(double
@@ -105,7 +119,7 @@ install(TARGETS aruco_ros_utils
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)
 
-install(TARGETS marker_publisher single double
+install(TARGETS marker_publisher single double test_single
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/
