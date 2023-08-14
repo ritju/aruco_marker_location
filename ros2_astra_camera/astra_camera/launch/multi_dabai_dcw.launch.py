@@ -26,12 +26,12 @@ def generate_container_node(camera_name, params):
                            plugin='astra_camera::PointCloudXyzNode',
                            namespace=camera_name,
                            name='point_cloud_xyz'),
-            ComposableNode(package='astra_camera',
-                           plugin='astra_camera::PointCloudXyzrgbNode',
-                           namespace=camera_name,
-                           name='point_cloud_xyzrgb')
+            # ComposableNode(package='astra_camera',
+            #                plugin='astra_camera::PointCloudXyzrgbNode',
+            #                namespace=camera_name,
+            #                name='point_cloud_xyzrgb')
         ],
-        output='screen')
+        output='log')
 
 
 def duplicate_params(general_params, posix, serial_number):
@@ -48,27 +48,49 @@ def generate_launch_description():
         sys.exit(-1)
     with open(params_file, 'r') as file:
         default_params = yaml.safe_load(file)
-
-    serial_number1 = "CH2PB10000W"
-    serial_number2 = "CH26420002V"
+    
+    serial_number1 = "CH282310048"
+    serial_number2 = "CH2B53100KR"
+    serial_number3 = "CH2B531001V"
     params1 = duplicate_params(default_params, "1", serial_number1)
     params2 = duplicate_params(default_params, "2", serial_number2)
+    params3 = duplicate_params(default_params, "3", serial_number3)
     container1 = generate_container_node("camera1", params1)
     container2 = generate_container_node("camera2", params2)
+    container3 = generate_container_node("camera3", params3)
     # dummy static transformation from camera1 to camera2
-    dummy_tf_node = launch_ros.actions.Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        arguments=[
-            "0",
-            "0",
-            "0",
-            "0",
-            "0",
-            "0",
-            "camera1_link",
-            "camera2_link",
-        ],
-    )
-    return LaunchDescription(
-        [container1, container2, dummy_tf_node])
+    # dummy_tf_node = launch_ros.actions.Node(
+    #     package="tf2_ros",
+    #     executable="static_transform_publisher",
+    #     arguments=[
+    #         "0",
+    #         "1",
+    #         "1",
+    #         "0",
+    #         "0",
+    #         "0",
+    #         "camera1_link",
+    #         "camera2_link",
+    #     ],
+    # )
+
+    # dummy_tf_node1 = launch_ros.actions.Node(
+    #     package="tf2_ros",
+    #     executable="static_transform_publisher",
+    #     arguments=[
+    #         "0",
+    #         "0",
+    #         "0",
+    #         "0",
+    #         "0",
+    #         "0",
+    #         "camera1_link",
+    #         "camera3_link",
+    #     ],
+    # )
+    containers = [
+        container1,
+        container2,
+        container3,
+    ]
+    return LaunchDescription(containers)

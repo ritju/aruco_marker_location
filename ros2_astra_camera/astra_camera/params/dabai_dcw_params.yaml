@@ -2,25 +2,25 @@
 camera_name : "camera" # # 相机名字（唯一）
 color_width: 640 # RGB宽
 color_height: 480 # RGB高
-color_fps: 30 # RGB帧率
+color_fps: 15 # RGB帧率
 enable_color: true #  RGB开关
 
 # IR相机宽/高/帧率 | IR camera width/height/FPS
 ir_width: 640 
 ir_height: 480
-ir_fps: 30
+ir_fps: 15
 enable_ir: true
 # 深度 相机宽/高/帧率 | depth camera width/height/FPS
 depth_width: 640
 depth_height: 480
-depth_fps: 30
+depth_fps: 15
 enable_depth: true
 
 # 是否开启D2C对齐(硬件对齐) | open depth to color alignment （hardware alignment）
 depth_align: true
 # 设备序列号，多相机的时候需要填写
 serial_number: ""
-number_of_devices: 1
+number_of_devices: 3
 # UVC 相机，目前只有 dabai, dabi DCW 需要 | UVC camera , only for dabai , dabai DCW serial
 uvc_camera.enable: true
 uvc_camera.format: "mjpeg"
@@ -42,3 +42,8 @@ depth_scale : 1
 publish_tf: true
 tf_publish_rate: 10.0
 reconnect_timeout: 6.0
+# for depth sensor reliable connection
+depth_try_number: 100
+depth_reconnection_delay: 100 # us
+
+

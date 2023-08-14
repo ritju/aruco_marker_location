@@ -353,12 +353,12 @@ void OBCameraNode::calcAndPublishStaticTransform() {
   rclcpp::Time tf_timestamp = node_->now();
 
   publishStaticTF(tf_timestamp, trans, Q, frame_id_[DEPTH], frame_id_[COLOR]);
-  publishStaticTF(tf_timestamp, trans, Q, camera_link_frame_id_, frame_id_[COLOR]);
+  // publishStaticTF(tf_timestamp, trans, Q, camera_link_frame_id_, frame_id_[COLOR]);
   publishStaticTF(tf_timestamp, zero_trans, quaternion_optical, frame_id_[COLOR],
                   optical_frame_id_[COLOR]);
   publishStaticTF(tf_timestamp, zero_trans, quaternion_optical, frame_id_[DEPTH],
                   optical_frame_id_[DEPTH]);
-  publishStaticTF(tf_timestamp, zero_trans, zero_rot, camera_link_frame_id_, frame_id_[DEPTH]);
+  // publishStaticTF(tf_timestamp, zero_trans, zero_rot, camera_link_frame_id_, frame_id_[DEPTH]);
   auto ex_msg = obExtrinsicsToMsg(rotation, transition, "depth_to_color_extrinsics");
   ex_msg.header.stamp = node_->now();
   extrinsics_publisher_->publish(ex_msg);

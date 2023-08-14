@@ -23,6 +23,7 @@
 #include "ob_camera_node.h"
 #include "uvc_camera_driver.h"
 #include "device_listener.h"
+#include <unistd.h>
 
 namespace astra_camera {
 class OBCameraNodeFactory : public rclcpp::Node {
@@ -65,6 +66,8 @@ class OBCameraNodeFactory : public rclcpp::Node {
   std::unordered_map<std::string, openni::DeviceInfo> connected_devices_;
   long reconnection_delay_ = 0;
   bool is_first_connection_ = true;
+  int depth_try_number_;
+  int depth_reconnection_delay_;
 };
 
 }  // namespace astra_camera

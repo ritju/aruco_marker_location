@@ -41,10 +41,14 @@ void OBCameraNodeFactory::init() {
     exit(-1);
   }
   parameters_ = std::make_shared<Parameters>(this);
+
   use_uvc_camera_ = declare_parameter<bool>("uvc_camera.enable", false);
   serial_number_ = declare_parameter<std::string>("serial_number", "");
   number_of_devices_ = declare_parameter<int>("number_of_devices", 1);
   reconnection_delay_ = declare_parameter<int>("reconnection_delay", 1);
+  depth_try_number_ = declare_parameter<int>("depth_try_number", 1);
+  depth_reconnection_delay_ = declare_parameter<int>("depth_reconnection_delay", 1);
+
   auto connected_cb = [this](const openni::DeviceInfo* device_info) {
     onDeviceConnected(device_info);
   };
@@ -96,10 +100,21 @@ void OBCameraNodeFactory::onDeviceConnected(const openni::DeviceInfo* device_inf
   if (!ret && !connected_devices_.count(device_info->getUri())) {
     auto device = std::make_shared<openni::Device>();
     RCLCPP_INFO_STREAM(logger_, "Trying to open device: " << device_info->getUri());
-    auto rc = device->open(device_info->getUri());
+    int cur_number = 0;
+    openni::Status rc;
+    do {
+      rc = device->open(device_info->getUri());
+      cur_number++;
+      if (rc == openni::STATUS_OK)
+        break;
+      usleep(depth_reconnection_delay_);
+    } while(cur_number <= depth_try_number_);
+    RCLCPP_INFO(logger_, "try %d times to open device successfully.", cur_number);
     if (rc != openni::STATUS_OK) {
       RCLCPP_ERROR_STREAM(logger_, "Failed to open device: " << device_info->getUri() << " error: "
                                                              << openni::OpenNI::getExtendedError());
+      RCLCPP_INFO(logger_, "openni::STATUS: %X", rc); 
+      RCLCPP_INFO(logger_, "errno: %d", errno);
       if (errno == EBUSY) {
         RCLCPP_ERROR_STREAM(logger_, "Device is already opened OR device is in use");
         connected_devices_[device_info->getUri()] = *device_info;
@@ -122,8 +137,14 @@ void OBCameraNodeFactory::onDeviceConnected(const openni::DeviceInfo* device_inf
         }
         startDevice();
       }
+      else
+      {
+        RCLCPP_INFO(logger_, "dst serialnumber: %s", serial_number_.c_str());
+        RCLCPP_INFO(logger_, "cur serialnumber: %s", serial_number);
+      }
     }
     if (!device_connected_) {
+      RCLCPP_INFO(logger_, "close device.");
       device->close();
     }
   }
@@ -137,6 +158,7 @@ void OBCameraNodeFactory::onDeviceConnected(const openni::DeviceInfo* device_inf
 }
 
 void OBCameraNodeFactory::onDeviceDisconnected(const openni::DeviceInfo* device_info) {
+  RCLCPP_INFO(logger_, "onDeviceDisconnected callback.");
   if (device_uri_ == device_info->getUri()) {
     device_uri_.clear();
     if (ob_camera_node_) {
