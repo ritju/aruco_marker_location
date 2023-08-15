@@ -1,0 +1,10 @@
+msg_test:
+  ros__parameters:
+    topics_sub:
+      - "/camera1/color/image_raw"
+      - "/camera2/color/image_raw"
+      - "/camera3/color/image_raw"
+      - "/camera1/depth/image_raw"
+      - "/camera2/depth/image_raw"
+      - "/camera3/depth/image_raw"
+    timeout_receive: 3.0
