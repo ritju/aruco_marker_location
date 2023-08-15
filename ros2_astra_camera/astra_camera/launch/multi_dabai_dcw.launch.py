@@ -49,9 +49,9 @@ def generate_launch_description():
     with open(params_file, 'r') as file:
         default_params = yaml.safe_load(file)
     
-    serial_number1 = "CH2B531000D"
+    serial_number1 = "CH282310048"
     serial_number2 = "CH2B531001V"
-    serial_number3 = "CH2B531001S"
+    serial_number3 = "CH2B53100KR"
     params1 = duplicate_params(default_params, "1", serial_number1)
     params2 = duplicate_params(default_params, "2", serial_number2)
     params3 = duplicate_params(default_params, "3", serial_number3)

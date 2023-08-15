@@ -41,6 +41,7 @@ find_package(tf2_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_sensor_msgs REQUIRED)
 find_package(PkgConfig REQUIRED)
+find_package(pthread REQUIRED)
 pkg_search_module(LIBUVC REQUIRED libuvc)
 if (NOT LIBUVC_FOUND)
   message(FATAL_ERROR "libuvc is not found")
@@ -85,6 +86,7 @@ set(dependencies
   tf2_msgs
   tf2_ros
   tf2_sensor_msgs
+  pthread
   )
 
 add_library(${PROJECT_NAME} SHARED
@@ -123,6 +125,7 @@ target_link_libraries(${PROJECT_NAME}
   -L${ORBBEC_OPENNI2_REDIST}
   )
 
+# msg_test_lib
 add_library(msg_test_lib SHARED)
 target_sources(
   msg_test_lib
@@ -148,6 +151,33 @@ target_link_libraries(msg_test_lib
   -L${ORBBEC_OPENNI2_REDIST}
   ${PROJECT_NAME}
   )
+
+# thread_manager_lib
+add_library(thread_manager_lib SHARED)
+target_sources(
+  thread_manager_lib
+  PRIVATE
+  src/test/thread_manager.cpp
+)
+target_include_directories(thread_manager_lib PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${OpenCV_INCLUDED_DIRS}
+  )
+ament_target_dependencies(thread_manager_lib
+  ${dependencies}
+  )
+target_link_libraries(thread_manager_lib
+  ${OpenCV_LIBS}
+  Eigen3::Eigen
+  glog::glog
+  magic_enum::magic_enum
+  ${LIBUVC_LIBRARIES}
+  -lOpenNI2
+  -L${ORBBEC_OPENNI2_REDIST}
+  ${PROJECT_NAME}
+  ) 
 
 add_executable(list_devices_node
   src/list_devices_node.cpp
@@ -181,9 +211,13 @@ rclcpp_components_register_nodes(${PROJECT_NAME}
   "${PROJECT_NAME}::PointCloudXyzNode"
   "${PROJECT_NAME}::OBCameraNodeFactory")
 
-rclcpp_components_register_node(msg_test_lib
+  rclcpp_components_register_node(msg_test_lib
   PLUGIN "${PROJECT_NAME}::MsgTest"
   EXECUTABLE msg_test)
+
+  rclcpp_components_register_node(thread_manager_lib
+  PLUGIN "${PROJECT_NAME}::ThreadManager"
+  EXECUTABLE thread_manager)
 
 install(TARGETS ${PROJECT_NAME} msg_test_lib
   ARCHIVE DESTINATION lib
@@ -199,7 +233,7 @@ install(DIRECTORY openni2_redist/${HOST_PLATFORM}/OpenNI2
   DESTINATION lib/
   )
 
-install(TARGETS list_devices_node msg_test_lib
+install(TARGETS list_devices_node msg_test_lib thread_manager_lib
   DESTINATION lib/${PROJECT_NAME}/
   )
 
@@ -242,6 +276,6 @@ if (BUILD_TESTING)
 endif ()
 
 ament_export_include_directories(include)
-ament_export_libraries(${PROJECT_NAME} msg_test_lib)
+ament_export_libraries(${PROJECT_NAME} msg_test_lib thread_manager_lib)
 ament_export_dependencies(${dependencies})
 ament_package()

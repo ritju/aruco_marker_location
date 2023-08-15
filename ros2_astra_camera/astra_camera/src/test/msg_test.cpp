@@ -85,8 +85,7 @@ void MsgTest::cb_check_frame()
 		{
 			RCLCPP_WARN(get_logger(), "topic %s timeout!", topics_image_sub_[index].c_str());
 		}
-		fps_vec_[index] = 1.0 / delay;
-		RCLCPP_INFO(get_logger(), "topic %s => fps: %.1f", topics_image_sub_[index].c_str(), fps_vec_[index]);
+		
 	}
 }
 } // namespace astra_camera
