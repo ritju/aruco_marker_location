@@ -41,7 +41,7 @@ find_package(tf2_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_sensor_msgs REQUIRED)
 find_package(PkgConfig REQUIRED)
-find_package(pthread REQUIRED)
+find_package(Threads REQUIRED)
 pkg_search_module(LIBUVC REQUIRED libuvc)
 if (NOT LIBUVC_FOUND)
   message(FATAL_ERROR "libuvc is not found")
@@ -86,7 +86,7 @@ set(dependencies
   tf2_msgs
   tf2_ros
   tf2_sensor_msgs
-  pthread
+  Threads
   )
 
 add_library(${PROJECT_NAME} SHARED
@@ -219,7 +219,7 @@ rclcpp_components_register_nodes(${PROJECT_NAME}
   PLUGIN "${PROJECT_NAME}::ThreadManager"
   EXECUTABLE thread_manager)
 
-install(TARGETS ${PROJECT_NAME} msg_test_lib
+install(TARGETS ${PROJECT_NAME} msg_test_lib thread_manager_lib
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin

@@ -8,3 +8,10 @@ msg_test:
       - "/camera2/depth/image_raw"
       - "/camera3/depth/image_raw"
     timeout_receive: 3.0
+
+thread_manager:
+  ros__parameters:
+    loop_number: 500
+    
+
+

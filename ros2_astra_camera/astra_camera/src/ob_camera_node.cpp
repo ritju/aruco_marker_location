@@ -269,7 +269,7 @@ void OBCameraNode::getParameters() {
   setAndGetNodeParameter(parameters_, tf_publish_rate_, "tf_publish_rate", 10.0);
   setAndGetNodeParameter(parameters_, camera_link_frame_id_, "camera_link_frame_id",
                          DEFAULT_BASE_FRAME_ID);
-  setAndGetNodeParameter(parameters_, depth_align_, "depth_align", false);
+  setAndGetNodeParameter(parameters_, depth_align_, "depth_align", true);
   setAndGetNodeParameter(parameters_, color_depth_synchronization_, "color_depth_synchronization",
                          false);
   setAndGetNodeParameter(parameters_, color_roi_.x, "color_roi.x", -1);
