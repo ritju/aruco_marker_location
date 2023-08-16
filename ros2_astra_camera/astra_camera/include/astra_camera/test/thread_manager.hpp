@@ -23,7 +23,7 @@ void loop();
 void start_thread(const std::string & thread_name);
 void stop_thread(const std::string & thread_name);
 
-void work_for(const std::string & tname, int num);
+void work_for(const std::string & tname);
 
 
 private:

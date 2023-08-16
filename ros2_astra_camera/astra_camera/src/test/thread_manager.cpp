@@ -20,7 +20,7 @@ void ThreadManager::start_thread(const std::string & tname)
 	RCLCPP_INFO(get_logger(), "Thread %s created.", tname.c_str());
 	devices_connected_number = 0;
 	success = false;
-	std::thread thrd = std::thread(&ThreadManager::work_for, this, tname, 3);
+	std::thread thrd = std::thread(&ThreadManager::work_for, this, tname);
 	tm_[tname] = thrd.native_handle();
 	thrd.join();
 }
@@ -38,7 +38,7 @@ void ThreadManager::stop_thread(const std::string & tname)
 	}
 }
 
-void ThreadManager::work_for(const std::string & tname, int num)
+void ThreadManager::work_for(const std::string & tname)
 {
 	prctl(PR_SET_NAME, tname.c_str(), 0, 0, 0);
 	openni::Status rc;
