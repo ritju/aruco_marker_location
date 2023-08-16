@@ -80,7 +80,7 @@ void ThreadManager::work_for(const std::string & tname, int num)
 	auto device_listener_ =
 		std::make_unique<astra_camera::DeviceListener>(connected_cb, disconnected_cb);
 	RCLCPP_INFO(get_logger(), "before shutdown()");
-	openni::OpenNI::shutdown();
+	// openni::OpenNI::shutdown();
 	RCLCPP_INFO(get_logger(), "before shutdown()");
 }
 
