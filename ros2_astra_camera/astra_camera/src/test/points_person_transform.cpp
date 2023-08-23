@@ -38,7 +38,7 @@ void PointsPersonTF::init_params()
 	declare_parameter<int>("queue_size", 5);
 	declare_parameter<float>("z_min", 0.9);
 	declare_parameter<float>("theta_x", -0.785398);
-	declare_parameter<int>("r_", 0);
+	declare_parameter<int>("r", 0);
 
 	topic_coodinate_ = get_parameter("topic_coodinate").get_value<std::string>();
 	topic_points_ = get_parameter("topic_points").get_value<std::string>();
@@ -49,7 +49,7 @@ void PointsPersonTF::init_params()
 	queue_size_ = get_parameter("queue_size").get_value<int>();
 	z_min_ = get_parameter("z_min").get_value<float>();
 	theta_x_ = get_parameter("theta_x").get_value<float>();
-	r_ = get_parameter("r_").get_value<int>();
+	r_ = get_parameter("r").get_value<int>();
 	RCLCPP_INFO_STREAM(logger_, "tf_left: " << tf_left_ << ", tf_right_: " << tf_right_
 	                                        << ", tf_back_: " << tf_back_
 	                                        << ", queue_size: " << queue_size_
