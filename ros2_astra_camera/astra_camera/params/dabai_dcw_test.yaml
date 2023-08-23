@@ -12,6 +12,24 @@ msg_test:
 thread_manager:
   ros__parameters:
     loop_number: 500
+
+points_person_tf:
+  ros__parameters::
+    topic_coodinate: "/coord_persons"
+    topic_points: "/camera/depth/points"
+    topic_pub: "points_cloud_person"
+    tf_left: 0.1
+    tf_right: 0.1
+    tf_back: 0.6
+    queue_size: 5
+    z_min: 0.2
+    theta_x: 0.0 # 0.785398
+    test_mode: false
+    test_x1: 100
+    test_y1: 150
+    test_x2: 400
+    test_y2: 300
+    r: 0
     
 
 

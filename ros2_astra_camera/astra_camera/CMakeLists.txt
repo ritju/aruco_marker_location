@@ -177,7 +177,36 @@ target_link_libraries(thread_manager_lib
   -lOpenNI2
   -L${ORBBEC_OPENNI2_REDIST}
   ${PROJECT_NAME}
-  ) 
+  )
+
+# points_person_transform_lib 
+add_library(points_person_transform_lib SHARED)
+target_sources(
+  points_person_transform_lib
+  PRIVATE
+  src/test/points_person_transform.cpp
+)
+target_include_directories(points_person_transform_lib PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${OpenCV_INCLUDED_DIRS}
+  )
+ament_target_dependencies(points_person_transform_lib
+  ${dependencies}
+  )
+target_link_libraries(points_person_transform_lib
+  ${OpenCV_LIBS}
+  Eigen3::Eigen
+  glog::glog
+  magic_enum::magic_enum
+  ${LIBUVC_LIBRARIES}
+  -lOpenNI2
+  -L${ORBBEC_OPENNI2_REDIST}
+  ${PROJECT_NAME}
+  )
+
+
 
 add_executable(list_devices_node
   src/list_devices_node.cpp
@@ -217,9 +246,13 @@ rclcpp_components_register_nodes(${PROJECT_NAME}
 
   rclcpp_components_register_node(thread_manager_lib
   PLUGIN "${PROJECT_NAME}::ThreadManager"
-  EXECUTABLE thread_manager)
+  EXECUTABLE thread_manager)  
+  
+  rclcpp_components_register_node(points_person_transform_lib
+  PLUGIN "${PROJECT_NAME}::PointsPersonTF"
+  EXECUTABLE points_person_transform)
 
-install(TARGETS ${PROJECT_NAME} msg_test_lib thread_manager_lib
+install(TARGETS ${PROJECT_NAME} msg_test_lib thread_manager_lib points_person_transform_lib
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -233,7 +266,7 @@ install(DIRECTORY openni2_redist/${HOST_PLATFORM}/OpenNI2
   DESTINATION lib/
   )
 
-install(TARGETS list_devices_node msg_test_lib thread_manager_lib
+install(TARGETS list_devices_node msg_test_lib thread_manager_lib points_person_transform_lib
   DESTINATION lib/${PROJECT_NAME}/
   )
 
@@ -276,6 +309,6 @@ if (BUILD_TESTING)
 endif ()
 
 ament_export_include_directories(include)
-ament_export_libraries(${PROJECT_NAME} msg_test_lib thread_manager_lib)
+ament_export_libraries(${PROJECT_NAME} msg_test_lib thread_manager_lib points_person_transform_lib)
 ament_export_dependencies(${dependencies})
 ament_package()
