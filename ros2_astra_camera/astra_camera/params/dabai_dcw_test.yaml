@@ -29,7 +29,7 @@ points_person_tf:
     test_y1: 150
     test_x2: 400
     test_y2: 300
-    r: 0
+    r: 5
     
 
 

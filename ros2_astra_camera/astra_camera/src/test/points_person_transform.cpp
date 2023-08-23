@@ -81,7 +81,10 @@ void PointsPersonTF::cb_coord(const astra_camera_msgs::msg::CoordPersonList::Sha
 	}
 	if (queue_persons_.size() < queue_size_)
 	{
-		queue_persons_.push(*msg);
+		if(msg->persons.size() > 0)
+		{
+			queue_persons_.push(*msg);
+		}
 	}
 	else
 	{
