@@ -185,9 +185,11 @@ void OBCameraNode::setupVideoMode() {
 }
 
 void OBCameraNode::startStreams() {
+  RCLCPP_INFO(logger_, "0");
   setupVideoMode();
   int color_width = 0;
   int color_height = 0;
+  RCLCPP_INFO(logger_, "1");
   if (use_uvc_camera_) {
     CHECK_NOTNULL(uvc_camera_driver_);
     color_width = uvc_camera_driver_->getResolutionX();
@@ -196,8 +198,11 @@ void OBCameraNode::startStreams() {
     color_width = stream_video_mode_[COLOR].getResolutionX();
     color_height = stream_video_mode_[COLOR].getResolutionY();
   }
+  RCLCPP_INFO(logger_, "2");
   setImageRegistrationMode(depth_align_);
+  RCLCPP_INFO(logger_, "3");
   setDepthColorSync(color_depth_synchronization_);
+  RCLCPP_INFO(logger_, "4");
   if (depth_align_) {
     setDepthToColorResolution(color_width, color_height);
   }
@@ -209,15 +214,22 @@ void OBCameraNode::startStreams() {
       streams_[stream_index]->setVideoMode(video_mode);
       streams_[stream_index]->setMirroringEnabled(false);
       CHECK(stream_frame_listener_.count(stream_index));
+      RCLCPP_INFO(logger_, "5");
       CHECK_NOTNULL(stream_frame_listener_[stream_index]);
+      RCLCPP_INFO(logger_, "6");
       streams_[stream_index]->addNewFrameListener(stream_frame_listener_[stream_index].get());
+      RCLCPP_INFO(logger_, "7");
       CHECK_EQ(streams_[stream_index]->start(), openni::STATUS_OK);
+      RCLCPP_INFO(logger_, "8");
       stream_started_[stream_index] = true;
       RCLCPP_INFO_STREAM(logger_, magic_enum::enum_name(stream_index.first) << " is started");
     }
   }
   if (use_uvc_camera_) {
+    
+    RCLCPP_INFO(logger_, "9");
     uvc_camera_driver_->startStreaming();
+    RCLCPP_INFO(logger_, "10");
   }
 }
 
