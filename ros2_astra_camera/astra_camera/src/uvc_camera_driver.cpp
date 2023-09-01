@@ -155,13 +155,17 @@ void UVCCameraDriver::setVideoMode() {
 }
 
 void UVCCameraDriver::startStreaming() {
+  RCLCPP_INFO(logger_, "start streaming");
   if (is_streaming_started) {
     RCLCPP_WARN_STREAM(logger_, "streaming is already started");
     return;
   }
   setVideoMode();
+  RCLCPP_INFO(logger_, "uvc start streaming");
   uvc_error_t stream_err =
       uvc_start_streaming(device_handle_, &ctrl_, &UVCCameraDriver::frameCallbackWrapper, this, 0);
+  
+  RCLCPP_INFO(logger_, "uvc start streaming end");
   if (stream_err != UVC_SUCCESS) {
     RCLCPP_ERROR_STREAM(logger_, "uvc start streaming error " << uvc_strerror(stream_err)
                                                               << " retry " << config_.retry_count
@@ -186,8 +190,11 @@ void UVCCameraDriver::startStreaming() {
     uvc_free_frame(frame_buffer_);
   }
 
+  RCLCPP_INFO(logger_, "uvc_allocate_frame");
   frame_buffer_ = uvc_allocate_frame(config_.width * config_.height * 3);
+  RCLCPP_INFO(logger_, "before check frame_buffer");
   CHECK_NOTNULL(frame_buffer_);
+  RCLCPP_INFO(logger_, "after check frame_buffer");
   is_streaming_started.store(true);
 }
 
@@ -611,6 +618,8 @@ bool UVCCameraDriver::setUVCMirrorCb(const std::shared_ptr<SetBool::Request>& re
 bool UVCCameraDriver::toggleUVCCamera(const std::shared_ptr<SetBool::Request>& request,
                                       std::shared_ptr<SetBool::Response>& response) {
   (void)response;
+
+  RCLCPP_INFO(logger_, "toggleUVCCamera");
   if (request->data) {
     startStreaming();
   } else {

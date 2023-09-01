@@ -24,6 +24,8 @@
 #include "uvc_camera_driver.h"
 #include "device_listener.h"
 #include <unistd.h>
+#include <map>
+#include <mutex>
 
 namespace astra_camera {
 class OBCameraNodeFactory : public rclcpp::Node {
@@ -45,6 +47,11 @@ class OBCameraNodeFactory : public rclcpp::Node {
   void onDeviceDisconnected(const openni::DeviceInfo* device_info);
 
   void checkConnectionTimer();
+  void checkConnection();
+  void connection();
+
+  template<typename T>
+  T declare_parameter_if_not_declared(const std::string & param_name, T default_value);
 
 
  private:
@@ -59,7 +66,7 @@ class OBCameraNodeFactory : public rclcpp::Node {
   std::unique_ptr<DeviceListener> device_listener_ = nullptr;
   std::string serial_number_;
   std::string device_type_;
-  std::string device_uri_;
+  std::string device_uri_ = std::string("2bc5/0659@1/128");
   rclcpp::TimerBase::SharedPtr check_connection_timer_;
   std::atomic_bool device_connected_{false};
   size_t number_of_devices_;
@@ -68,6 +75,13 @@ class OBCameraNodeFactory : public rclcpp::Node {
   bool is_first_connection_ = true;
   int depth_try_number_;
   int depth_reconnection_delay_;
+  std::map<std::string, std::string> serial_uri;
+  int number_off_ = 0;
+  std::thread thread_check_;
+  std::thread thread_connect_;
+  std::mutex mutex_thread_;
+  bool connecting_ = true;
+  bool connecting_complete_ = false;
 };
 
 }  // namespace astra_camera

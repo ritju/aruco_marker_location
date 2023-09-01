@@ -25,9 +25,9 @@ points_person_tf:
     z_min: 0.2
     theta_x: 0.0 # 0.785398
     test_mode: true
-    test_x1: 100
+    test_x1: 310
     test_y1: 150
-    test_x2: 400
+    test_x2: 330
     test_y2: 300
     r: 25
     valid_x_min: -2.0

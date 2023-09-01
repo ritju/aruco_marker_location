@@ -441,6 +441,9 @@ bool OBCameraNode::toggleSensorCallback(const std::shared_ptr<SetBool::Request>&
 
 bool OBCameraNode::toggleSensor(const stream_index_pair& stream_index, bool enabled,
                                 std::string& msg) {
+  RCLCPP_INFO(logger_, "toggle sensor");
+  RCLCPP_INFO(logger_, "sensor %s, enabled: %s", stream_name_[stream_index], enabled);
+  
   if (!device_->hasSensor(stream_index.first)) {
     std::stringstream ss;
 
