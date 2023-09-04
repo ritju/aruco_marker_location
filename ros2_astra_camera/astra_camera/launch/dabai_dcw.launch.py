@@ -32,7 +32,7 @@ def func(context, *args, **kwargs):
             ]
 
     time.sleep(3)
-    return [LoadComposableNodes(composable_node_descriptions=comps, target_container='camera1/astra_camera_container')]
+    return [LoadComposableNodes(composable_node_descriptions=comps, target_container='astra_camera_container')]
 
 
 def generate_launch_description():
