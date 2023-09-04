@@ -14,28 +14,26 @@ params_file = get_package_share_directory("astra_camera") + "/params/dabai_dcw_p
 with open(params_file, 'r') as file:
     config_params = yaml.safe_load(file)
 
+
 def func(context, *args, **kwargs):
-	comps =[
-                ComposableNode(
-                    package='astra_camera',
-                    plugin='astra_camera::OBCameraNodeFactory',
-                    name='camera',
-                    namespace='camera',
-                    parameters=[config_params]
-                ),
-                ComposableNode(
-                    package='astra_camera',
-                    plugin='astra_camera::PointCloudXyzNode',
-                    namespace='camera',
-                    name='point_cloud_xyz'),
-                ComposableNode(
-                    package='astra_camera',
-                    plugin='astra_camera::PointCloudXyzrgbNode',
-                    namespace='camera',
-                    name='point_cloud_xyzrgb')
+    comps =[
+            ComposableNode(
+                package='astra_camera',
+                plugin='astra_camera::OBCameraNodeFactory',
+                name='camera',
+                namespace='camera',
+                parameters=[config_params]
+            ),
+            ComposableNode(
+                package='astra_camera',
+                plugin='astra_camera::PointCloudXyzNode',
+                namespace='camera',
+                name='point_cloud_xyz'),
             ]
-	time.sleep(15) 
-	return [LoadComposableNodes(composable_node_descriptions=comps, target_container='astra_camera_container')]
+
+    time.sleep(3)
+    return [LoadComposableNodes(composable_node_descriptions=comps, target_container='camera1/astra_camera_container')]
+
 
 def generate_launch_description():
     
