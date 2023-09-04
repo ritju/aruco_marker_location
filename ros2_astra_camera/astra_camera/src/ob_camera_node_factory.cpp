@@ -65,6 +65,10 @@ void OBCameraNodeFactory::init() {
   }
   
   device_listener_ = std::make_unique<DeviceListener>(connected_cb, disconnected_cb);
+  if(device_listener_)
+  {
+    RCLCPP_INFO(logger_, "****device_listener exists.");
+  }
   using namespace std::chrono_literals;
   connecting_ = false;
   check_connection_timer_ = this->create_wall_timer(1s, [this] { checkConnectionTimer(); });
