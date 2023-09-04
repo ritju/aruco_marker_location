@@ -26,9 +26,9 @@ def duplicate_params(general_params, posix, serial_number):
     local_params["serial_number"] = serial_number
     return local_params
 
-serial_number1 = "CH2R73100ES" #"CH282310048"
-serial_number2 = "CH2B531001V"
-serial_number3 = "CH2B53100KR"
+serial_number1 = "CH282310048" #front-up
+serial_number2 = "CH2R73100JN" #front-down
+serial_number3 = "CH2B53100KR" #back
 params1 = duplicate_params(default_params, "1", serial_number1)
 params2 = duplicate_params(default_params, "2", serial_number2)
 params3 = duplicate_params(default_params, "3", serial_number3)
@@ -143,10 +143,20 @@ def generate_launch_description():
 			target_action=container1,
 			on_start=[LogInfo(msg='Container start'),OpaqueFunction(function=func, kwargs={'camera_name': 'camera1', 'parameters': params1})]
 		))
+    event2 = RegisterEventHandler(
+        OnProcessStart(
+			target_action=container2,
+			on_start=[LogInfo(msg='Container start'),OpaqueFunction(function=func, kwargs={'camera_name': 'camera2', 'parameters': params2})]
+		))
+    event3 = RegisterEventHandler(
+        OnProcessStart(
+			target_action=container3,
+			on_start=[LogInfo(msg='Container start'),OpaqueFunction(function=func, kwargs={'camera_name': 'camera3', 'parameters': params3})]
+		))
 
     containers = [
         event1,container1,
-        # container2,
-        # container3,
+        event2,container2,
+        event3,container3,
     ]
     return LaunchDescription(containers)
