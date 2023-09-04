@@ -1,3 +1,2 @@
 *.log
-libuvc/*
-src/aruco_marker_location/ros2_astra_camera/astra_camera/launch/serials.txt
+ros2_astra_camera/astra_camera/launch/serials.txt
