@@ -1,6 +1,0 @@
-
-serial_number1 = "CH282310048" #front-up
-serial_number2 = "CH2R73100JN" #front-down
-serial_number3 = "CH2B53100KR" #back
-
-
