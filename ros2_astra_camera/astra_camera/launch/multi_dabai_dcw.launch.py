@@ -8,7 +8,12 @@ import copy
 from os import path
 import yaml
 from launch_ros.actions import Node
+import os
 
+
+camera_1 = os.environ.get('CAMERA1_NUMBER')
+camera_2 = os.environ.get('CAMERA2_NUMBER')
+camera_3 = os.environ.get('CAMERA3_NUMBER')
 
 def generate_container_node(camera_name, params):
     return ComposableNodeContainer(
@@ -48,10 +53,10 @@ def generate_launch_description():
         sys.exit(-1)
     with open(params_file, 'r') as file:
         default_params = yaml.safe_load(file)
-    
-    serial_number1 = "CH282310048"
-    serial_number2 = "CH2B531001V"
-    serial_number3 = "CH2B53100KR"
+
+    serial_number1 = camera_1 #前上
+    serial_number2 = camera_2 #前下
+    serial_number3 = camera_3 #后
     params1 = duplicate_params(default_params, "1", serial_number1)
     params2 = duplicate_params(default_params, "2", serial_number2)
     params3 = duplicate_params(default_params, "3", serial_number3)
@@ -90,7 +95,7 @@ def generate_launch_description():
     # )
     containers = [
         container1,
-        container2,
-        container3,
+        # container2,
+        # container3,
     ]
     return LaunchDescription(containers)
