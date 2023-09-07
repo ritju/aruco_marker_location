@@ -233,6 +233,32 @@ target_link_libraries(list_devices_node
   ${PROJECT_NAME}
   )
 
+# test executable
+add_executable(test_camera
+  src/test/test.cpp
+  )
+target_include_directories(test_camera PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${OpenCV_INCLUDED_DIRS}
+  )
+
+
+ament_target_dependencies(test_camera
+  ${dependencies}
+  )
+target_link_libraries(test_camera
+  ${OpenCV_LIBS}
+  Eigen3::Eigen
+  glog::glog
+  magic_enum::magic_enum
+  ${LIBUVC_LIBRARIES}
+  -lOpenNI2
+  -L${ORBBEC_OPENNI2_REDIST}
+  ${PROJECT_NAME}
+  )
+
 target_compile_definitions(${PROJECT_NAME} PRIVATE "COMPOSITION_BUILDING_DLL")
 
 rclcpp_components_register_nodes(${PROJECT_NAME}
@@ -266,7 +292,7 @@ install(DIRECTORY openni2_redist/${HOST_PLATFORM}/OpenNI2
   DESTINATION lib/
   )
 
-install(TARGETS list_devices_node msg_test_lib thread_manager_lib points_person_transform_lib
+install(TARGETS test_camera list_devices_node msg_test_lib thread_manager_lib points_person_transform_lib
   DESTINATION lib/${PROJECT_NAME}/
   )
 

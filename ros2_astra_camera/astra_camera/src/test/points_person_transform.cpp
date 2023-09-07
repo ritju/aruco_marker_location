@@ -39,6 +39,13 @@ void PointsPersonTF::init_params()
 	declare_parameter<float>("z_min", 0.9);
 	declare_parameter<float>("theta_x", -0.785398);
 	declare_parameter<int>("r", 0);
+	declare_parameter<float>("valid_x_min", -2.0);
+	declare_parameter<float>("valid_x_max", -2.0);
+	declare_parameter<float>("valid_y_min", -0.2);
+	declare_parameter<float>("valid_y_max", 1.5);
+	declare_parameter<float>("valid_z_min", 0.3);
+	declare_parameter<float>("valid_z_max", 4.0);
+	declare_parameter<bool>("filter_bool", false);
 
 	topic_coodinate_ = get_parameter("topic_coodinate").get_value<std::string>();
 	topic_points_ = get_parameter("topic_points").get_value<std::string>();
@@ -50,12 +57,27 @@ void PointsPersonTF::init_params()
 	z_min_ = get_parameter("z_min").get_value<float>();
 	theta_x_ = get_parameter("theta_x").get_value<float>();
 	r_ = get_parameter("r").get_value<int>();
+	data_range_.min_x = get_parameter("valid_x_min").get_value<float>();
+	data_range_.max_x = get_parameter("valid_x_max").get_value<float>();
+	data_range_.min_y = get_parameter("valid_y_min").get_value<float>();
+	data_range_.max_y = get_parameter("valid_y_max").get_value<float>();
+	data_range_.min_z = get_parameter("valid_z_min").get_value<float>();
+	data_range_.max_z = get_parameter("valid_z_max").get_value<float>();
+	filter_bool_ = get_parameter("filter_bool").get_value<bool>();
 	RCLCPP_INFO_STREAM(logger_, "tf_left: " << tf_left_ << ", tf_right_: " << tf_right_
 	                                        << ", tf_back_: " << tf_back_
 	                                        << ", queue_size: " << queue_size_
 	                                        << ", z_min: " << z_min_
 	                                        << ", theta_x: " << theta_x_
-	                                        << ", r: " << r_);
+	                                        << ", r: " << r_
+	                                        << ", valid_x_min: " << data_range_.min_x
+	                                        << ", valid_x_max: " << data_range_.max_x
+	                                        << ", valid_y_min: " << data_range_.min_y
+	                                        << ", valid_y_max: " << data_range_.max_y
+	                                        << ", valid_z_min: " << data_range_.min_z
+	                                        << ", valid_z_max: " << data_range_.max_z
+						<< ", filter_bool:" << filter_bool_
+	                   );
 
 
 	// just for test(comment after test)
@@ -131,9 +153,13 @@ void PointsPersonTF::cb_points(const sensor_msgs::msg::PointCloud2::SharedPtr ms
 			process(x1, y1, x2, y2, theta_x_, r_);
 		}
 	}
-	if (test_mode_ || !queue_persons_.empty())
+	if ((test_mode_ || !queue_persons_.empty()))
 	{
 		msg_pub.data.clear();
+		if(filter_bool_)
+		{
+			filter(frame);
+		}
 		for (int i = 0; i < data_count_; i++)
 		{
 			msg_pub.data.push_back(frame.data[i]);
@@ -204,6 +230,40 @@ void PointsPersonTF::rotate_x(float &y, float &z, float theta)
 	z_ = z * cos(theta) + y * sin(theta);
 	y = y_;
 	z = z_;
+}
+
+bool PointsPersonTF::filter(cv::Mat &mat)
+{
+	bool ret = true;
+	if (mat.type() == CV_32FC4 && mat.rows == height_ && mat.cols == width_)
+	{
+		for (int row = 0; row < height_; row++)
+		{
+			for (int col = 0; col < width_; width_++)
+			{
+				auto point4f = mat.at<cv::Vec4f>(row, col);
+				if(point4f[0] == point4f[0] && point4f[1] == point4f[1] && point4f[2] == point4f[2])
+				{
+					if (point4f[0] > data_range_.min_x && point4f[0] < data_range_.max_x
+					    && point4f[1] > data_range_.min_y && point4f[1] < data_range_.max_y
+					    && point4f[2] > data_range_.min_z && point4f[2] < data_range_.max_z)
+					{
+						continue;
+					}
+					else
+					{
+						point4f[0]=point4f[1]=point4f[2]=-10;
+						mat.at<cv::Vec4f>(row, col) = point4f;
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		ret = false;
+	}
+	return ret;
 }
 
 } // end of namespace astra_camera

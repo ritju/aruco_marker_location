@@ -10,6 +10,17 @@
 #include <queue>
 
 namespace astra_camera{
+
+struct valid_data_range
+{
+        float min_x;
+        float max_x;
+        float min_y;
+        float max_y;
+        float min_z;
+        float max_z;
+};
+
 class PointsPersonTF: public rclcpp::Node
 {
 public:
@@ -24,6 +35,7 @@ public:
 
         void cb_coord(const astra_camera_msgs::msg::CoordPersonList::SharedPtr msg);
         void cb_points(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+        bool filter(cv::Mat & mat);
 private:
         rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_points_;
         rclcpp::Subscription<astra_camera_msgs::msg::CoordPersonList>::SharedPtr sub_persons_;
@@ -48,6 +60,8 @@ private:
         std::vector<std::vector<bool>> processed_;
         int data_count_;
         unsigned char *frame_data_;
+        valid_data_range data_range_;
+        bool filter_bool_ {false};
 
         // just for test
         bool test_mode_{false};
