@@ -27,7 +27,7 @@ def duplicate_params(general_params, posix, serial_number):
     local_params["serial_number"] = serial_number
     return local_params
 
-serial_number1 = "CH282310048" #front-up
+serial_number1 = "CH282310048" #front-up CH2R73100ES
 serial_number2 = "CH2R73100JN" #front-down
 serial_number3 = "CH2B53100KR" #back
 params1 = duplicate_params(default_params, "1", serial_number1)

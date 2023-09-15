@@ -1,12 +1,12 @@
 msg_test:
   ros__parameters:
-    topics_sub:
-      - "/camera1/color/image_raw"
-      - "/camera2/color/image_raw"
-      - "/camera3/color/image_raw"
-      - "/camera1/depth/image_raw"
-      - "/camera2/depth/image_raw"
-      - "/camera3/depth/image_raw"
+    # topics_sub: "/camera1/depth/points"
+      # - "/camera1/color/image_raw"
+      # - "/camera2/color/image_raw"
+      # - "/camera3/color/image_raw"
+      # - "/camera1/depth/points"
+      # - "/camera2/depth/image_raw"
+      # - "/camera3/depth/image_raw"
     timeout_receive: 3.0
 
 thread_manager:
@@ -16,15 +16,15 @@ thread_manager:
 points_person_tf:
   ros__parameters::
     topic_coodinate: "/coord_persons"
-    topic_points: "/camera/depth/points"
+    topic_points: "/camera1/depth/points"
     topic_pub: "points_cloud_person"
     tf_left: 0.1
     tf_right: 0.1
-    tf_back: 0.5
-    queue_size: 5
+    tf_back: 1.0
+    queue_size: 5  
     z_min: 0.2
-    theta_x: 0.0 # 0.785398
-    test_mode: true
+    theta_x: 0.785398 # 0.785398
+    test_mode: false
     test_x1: 310
     test_y1: 150
     test_x2: 330
@@ -33,7 +33,7 @@ points_person_tf:
     valid_x_min: -2.0
     valid_x_max: 2.0
     valid_y_min: -0.2
-    valid_y_max: 1.5
+    valid_y_max: 2.0
     valid_z_min: 0.30
     valid_z_max: 4.0
     filter_bool: false

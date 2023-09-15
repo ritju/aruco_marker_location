@@ -62,6 +62,10 @@ private:
         unsigned char *frame_data_;
         valid_data_range data_range_;
         bool filter_bool_ {false};
+        int frame_index_points = 0;
+        int frame_index_coord = 0;
+        int count_has_person = 0;
+        int count_no_person = 0;
 
         // just for test
         bool test_mode_{false};

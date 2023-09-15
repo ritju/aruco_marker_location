@@ -242,7 +242,7 @@ void OBCameraNodeFactory::checkConnection() {
     {
       bus_code = "0" + bus_code;
     }
-    RCLCPP_INFO(logger_, "bus_code: %s", bus_code.c_str());
+    // RCLCPP_INFO(logger_, "bus_code: %s", bus_code.c_str());
 
     if(!std::filesystem::exists("/dev/bus/usb/001/"+bus_code))
     {
@@ -257,12 +257,12 @@ void OBCameraNodeFactory::checkConnection() {
         device_.reset();
       }
       init();
-      RCLCPP_INFO_STREAM(logger_, "-------------------\n");
+      // RCLCPP_INFO_STREAM(logger_, "-------------------\n");
     }
     else
     {       
-      RCLCPP_INFO_STREAM(logger_, "ok ");
-      RCLCPP_INFO_STREAM(logger_, "\n");
+      // RCLCPP_INFO_STREAM(logger_, "ok ");
+      // RCLCPP_INFO_STREAM(logger_, "\n");
     }
     if(!connecting_)
     {

@@ -13,11 +13,11 @@ PointsPersonTF::PointsPersonTF(const rclcpp::NodeOptions & options)
 	auto sub_options = rclcpp::SubscriptionOptions();
 	sub_options.callback_group = cb_group_;
 	sub_persons_ = create_subscription<astra_camera_msgs::msg::CoordPersonList>(
-		topic_coodinate_,rclcpp::SensorDataQoS(),
+		topic_coodinate_,rclcpp::QoS(10).reliable(),
 		std::bind(&PointsPersonTF::cb_coord, this, _1), sub_options);
 	sub_points_ = create_subscription<sensor_msgs::msg::PointCloud2>(
 		topic_points_,rclcpp::QoS(5).best_effort(),
-		std::bind(&PointsPersonTF::cb_points, this, _1));
+		std::bind(&PointsPersonTF::cb_points, this, _1), sub_options);
 	auto pub_options = rclcpp::PublisherOptions();
 	pub_options.callback_group = cb_group_;
 	pub_points_ = create_publisher<sensor_msgs::msg::PointCloud2>(topic_pub_, rclcpp::QoS(5).best_effort(), pub_options);
@@ -30,7 +30,7 @@ PointsPersonTF::~PointsPersonTF()
 void PointsPersonTF::init_params()
 {
 	declare_parameter<std::string>("topic_coodinate", "/coord_persons");
-	declare_parameter<std::string>("topic_points", "/camera/depth/points");
+	declare_parameter<std::string>("topic_points", "/camera1/depth/points");
 	declare_parameter<std::string>("topic_pub", "points_cloud_person");
 	declare_parameter<float>("tf_left", 0.1);
 	declare_parameter<float>("tf_right", 0.1);
@@ -76,7 +76,7 @@ void PointsPersonTF::init_params()
 	                                        << ", valid_y_max: " << data_range_.max_y
 	                                        << ", valid_z_min: " << data_range_.min_z
 	                                        << ", valid_z_max: " << data_range_.max_z
-						<< ", filter_bool:" << filter_bool_
+	                                        << ", filter_bool:" << filter_bool_
 	                   );
 
 
@@ -96,28 +96,30 @@ void PointsPersonTF::init_params()
 
 void PointsPersonTF::cb_coord(const astra_camera_msgs::msg::CoordPersonList::SharedPtr msg)
 {
+	frame_index_coord++;
 	std::lock_guard<std::mutex> lock(mtx_);
 	if (msg->persons.size() == 0)
 	{
+		count_no_person++;
 		return;
 	}
-	if (queue_persons_.size() < queue_size_)
-	{
-		if(msg->persons.size() > 0)
-		{
-			queue_persons_.push(*msg);
-		}
-	}
-	else
+	count_has_person++;
+	if (queue_persons_.size() == queue_size_)
 	{
 		queue_persons_.pop();
-		queue_persons_.push(*msg);
 	}
+	queue_persons_.push(*msg);
 }
 
 void PointsPersonTF::cb_points(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
-	std::lock_guard<std::mutex> lock(mtx_);
+	frame_index_points++;
+	// RCLCPP_INFO_STREAM(logger_,
+	//                    "\n"
+	//                    <<"frame_index_coord:     " << frame_index_coord
+	//                    << "\nframe_index_points: " << frame_index_points
+	//                    << "\ncount_has_person:   " << count_has_person
+	//                    << "\ncount_no_person:    " << count_no_person);
 	sensor_msgs::msg::PointCloud2 msg_pub;
 	msg_pub = *msg;
 	if (test_mode_ || !queue_persons_.empty())
@@ -140,9 +142,15 @@ void PointsPersonTF::cb_points(const sensor_msgs::msg::PointCloud2::SharedPtr ms
 	}
 	else if(!test_mode_ && !queue_persons_.empty())
 	{
-		auto person_list = queue_persons_.front();
-		queue_persons_.pop();
-		int size = person_list.persons.size();
+		// RCLCPP_INFO(logger_, "************ entry ************");
+		astra_camera_msgs::msg::CoordPersonList person_list;
+		int size;
+		std::lock_guard<std::mutex> lock(mtx_);
+		{
+			person_list = queue_persons_.front();
+			queue_persons_.pop();
+		}
+		size = person_list.persons.size();
 		int x1,y1, x2,y2;
 		for (int i = 0; i < size; i++)
 		{
@@ -150,6 +158,7 @@ void PointsPersonTF::cb_points(const sensor_msgs::msg::PointCloud2::SharedPtr ms
 			y1 = person_list.persons[i].y1;
 			x2 = person_list.persons[i].x2;
 			y2 = person_list.persons[i].y2;
+			RCLCPP_INFO_STREAM(logger_, "x1: " << x1 << " y1: " << y1 << " x2: " << x2 << " y2: " << y2);
 			process(x1, y1, x2, y2, theta_x_, r_);
 		}
 	}
@@ -187,6 +196,7 @@ void PointsPersonTF::process(int x1, int y1, int x2, int y2, float theta, int r)
 		start_y = std::max((y1 + y2) / 2  - r_, y1);
 		end_y = std::min((y1 + y2) / 2 + r_, y2);
 	}
+	// RCLCPP_INFO(logger_, "start_y: %d, end_y: %d", start_y, end_y );
 	for (int j = start_y; j <= end_y; j++)
 	{
 		for (int k = x1; k <= x2; k++)
@@ -198,7 +208,7 @@ void PointsPersonTF::process(int x1, int y1, int x2, int y2, float theta, int r)
 			}
 			else if(point4f[0] == point4f[0] && point4f[1] == point4f[1] && point4f[2] == point4f[2])
 			{
-				float x, y, z;                 // x=>right , y=>down, z=> front;
+				float x, y, z;
 				x = point4f[0];
 				y = point4f[1];
 				z = point4f[2];
