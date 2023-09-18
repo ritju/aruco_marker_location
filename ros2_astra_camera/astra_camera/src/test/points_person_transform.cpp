@@ -46,6 +46,7 @@ void PointsPersonTF::init_params()
 	declare_parameter<float>("valid_z_min", 0.3);
 	declare_parameter<float>("valid_z_max", 4.0);
 	declare_parameter<bool>("filter_bool", false);
+	declare_parameter<float>("life_time", 1.0);
 
 	topic_coodinate_ = get_parameter("topic_coodinate").get_value<std::string>();
 	topic_points_ = get_parameter("topic_points").get_value<std::string>();
@@ -64,6 +65,7 @@ void PointsPersonTF::init_params()
 	data_range_.min_z = get_parameter("valid_z_min").get_value<float>();
 	data_range_.max_z = get_parameter("valid_z_max").get_value<float>();
 	filter_bool_ = get_parameter("filter_bool").get_value<bool>();
+	life_time_ = get_parameter("life_time").get_value<float>();
 	RCLCPP_INFO_STREAM(logger_, "tf_left: " << tf_left_ << ", tf_right_: " << tf_right_
 	                                        << ", tf_back_: " << tf_back_
 	                                        << ", queue_size: " << queue_size_
@@ -76,7 +78,8 @@ void PointsPersonTF::init_params()
 	                                        << ", valid_y_max: " << data_range_.max_y
 	                                        << ", valid_z_min: " << data_range_.min_z
 	                                        << ", valid_z_max: " << data_range_.max_z
-	                                        << ", filter_bool:" << filter_bool_
+	                                        << ", filter_bool: " << filter_bool_
+	                                        << ", life_time: " << life_time_
 	                   );
 
 
@@ -160,6 +163,10 @@ void PointsPersonTF::cb_points(const sensor_msgs::msg::PointCloud2::SharedPtr ms
 				// RCLCPP_INFO_STREAM(logger_, "x1: " << x1 << " y1: " << y1 << " x2: " << x2 << " y2: " << y2);
 				process(x1, y1, x2, y2, theta_x_, r_);
 			}
+			last_coord_ = person_list;
+			last_time_ = this->get_clock()->now().seconds();
+			RCLCPP_DEBUG(logger_, "---------------------------------");
+			RCLCPP_DEBUG(logger_, "last_time: %f", last_time_);
 		}
 		msg_pub.data.clear();
 		if(filter_bool_)
@@ -169,6 +176,47 @@ void PointsPersonTF::cb_points(const sensor_msgs::msg::PointCloud2::SharedPtr ms
 		for (int i = 0; i < data_count_; i++)
 		{
 			msg_pub.data.push_back(frame.data[i]);
+		}
+		delete[] frame_data_;
+		frame_data_ = NULL;
+	}
+	else
+	{
+		height_ = msg->height;
+		width_ = msg->width;
+		data_count_ = msg->row_step * height_;
+		frame_data_ = new unsigned char[data_count_];
+		for(int count_index = 0; count_index < data_count_; count_index++)
+		{
+			frame_data_[count_index] = msg->data[count_index];
+		}
+		frame = cv::Mat(height_, width_, CV_32FC4, frame_data_);
+		processed_ = std::vector<std::vector<bool> >(height_, std::vector<bool>(width_, false));
+
+		double now_time = this->get_clock()->now().seconds();
+		double delta_time = now_time - last_time_;
+		RCLCPP_DEBUG(logger_, "*********************");
+		RCLCPP_DEBUG(logger_, "last_time: %f", last_time_);
+		RCLCPP_DEBUG(logger_, "now_time: %f", now_time);
+		RCLCPP_DEBUG(logger_, "delta time: %f", delta_time);
+		if (delta_time < life_time_)
+		{
+			RCLCPP_INFO(logger_, "delta time: %f", delta_time);
+
+			astra_camera_msgs::msg::CoordPersonList person_list;
+			int size;
+			person_list = last_coord_;
+			size = person_list.persons.size();
+			int x1,y1, x2,y2;
+			for (int i = 0; i < size; i++)
+			{
+				x1 = person_list.persons[i].x1;
+				y1 = person_list.persons[i].y1;
+				x2 = person_list.persons[i].x2;
+				y2 = person_list.persons[i].y2;
+				// RCLCPP_INFO_STREAM(logger_, "x1: " << x1 << " y1: " << y1 << " x2: " << x2 << " y2: " << y2);
+				process(x1, y1, x2, y2, theta_x_, r_);
+			}
 		}
 		delete[] frame_data_;
 		frame_data_ = NULL;

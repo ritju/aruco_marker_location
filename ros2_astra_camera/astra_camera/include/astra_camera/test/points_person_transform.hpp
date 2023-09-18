@@ -66,6 +66,9 @@ private:
         int frame_index_coord = 0;
         int count_has_person = 0;
         int count_no_person = 0;
+        float life_time_ = 1.0;
+        astra_camera_msgs::msg::CoordPersonList last_coord_;
+        double last_time_{0.0};
 
         // just for test
         bool test_mode_{false};
