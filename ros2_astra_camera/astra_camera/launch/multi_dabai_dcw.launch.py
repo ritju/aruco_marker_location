@@ -27,8 +27,8 @@ def duplicate_params(general_params, posix, serial_number):
     local_params["serial_number"] = serial_number
     return local_params
 
-serial_number1 = "CH282310048" #front-up CH2R73100ES
-serial_number2 = "CH2R73100JN" #front-down
+serial_number1 = "CH2R73100JN" #front-up CH2R73100ES
+serial_number2 = "CH282310048" #front-down
 serial_number3 = "CH2B53100KR" #back
 params1 = duplicate_params(default_params, "1", serial_number1)
 params2 = duplicate_params(default_params, "2", serial_number2)
@@ -68,15 +68,15 @@ def generate_container_node(camera_name, params):
         package='rclcpp_components',
         executable='component_container',
         composable_node_descriptions=[
-            ComposableNode(package='astra_camera',
-                           plugin='astra_camera::OBCameraNodeFactory',
-                           name='camera',
-                           parameters=[params],
-                           namespace=camera_name),
-            ComposableNode(package='astra_camera',
-                           plugin='astra_camera::PointCloudXyzNode',
-                           namespace=camera_name,
-                           name='point_cloud_xyz'),
+            # ComposableNode(package='astra_camera',
+            #                plugin='astra_camera::OBCameraNodeFactory',
+            #                name='camera',
+            #                parameters=[params],
+            #                namespace=camera_name),
+            # ComposableNode(package='astra_camera',
+            #                plugin='astra_camera::PointCloudXyzNode',
+            #                namespace=camera_name,
+            #                name='point_cloud_xyz'),
             # ComposableNode(package='astra_camera',
             #                plugin='astra_camera::PointCloudXyzrgbNode',
             #                namespace=camera_name,
@@ -101,15 +101,21 @@ def generate_launch_description():
     with open(params_file, 'r') as file:
         default_params = yaml.safe_load(file)
 
-    serial_number1 = camera_1 #前上
-    serial_number2 = camera_2 #前下
-    serial_number3 = camera_3 #后
+    # serial_number1 =  "CH2R73100ES"#前上
+    # serial_number2 = "CH2R73100JN" #前下
+    # serial_number3 = "CH2B53100KR" #后
+
+    serial_number1 = "CH2R73100ES"#前上
+    serial_number2 = "CH2R73100JN" #前下
+    serial_number3 = "CH2B53100KR" #后
+
     params1 = duplicate_params(default_params, "1", serial_number1)
     params2 = duplicate_params(default_params, "2", serial_number2)
     params3 = duplicate_params(default_params, "3", serial_number3)
     container1 = generate_container_node("camera1", params1)
     container2 = generate_container_node("camera2", params2)
     container3 = generate_container_node("camera3", params3)
+    
     # dummy static transformation from camera1 to camera2
     # dummy_tf_node = launch_ros.actions.Node(
     #     package="tf2_ros",
@@ -181,7 +187,7 @@ def generate_launch_description():
 
     containers = [
         event1,container1,
-        # event2,container2,
-        # event3,container3,
+        event2,container2,
+        event3,container3,
     ]
     return LaunchDescription(containers)

@@ -133,37 +133,34 @@ void PointsPersonTF::cb_points(const sensor_msgs::msg::PointCloud2::SharedPtr ms
 			frame_data_[count_index] = msg->data[count_index];
 		}
 		frame = cv::Mat(height_, width_, CV_32FC4, frame_data_);
-		processed_.clear();
 		processed_ = std::vector<std::vector<bool> >(height_, std::vector<bool>(width_, false));
-	}
-	if (test_mode_)
-	{
-		process(test_x1_, test_y1_, test_x2_, test_y2_, theta_x_, r_);
-	}
-	else if(!test_mode_ && !queue_persons_.empty())
-	{
-		// RCLCPP_INFO(logger_, "************ entry ************");
-		astra_camera_msgs::msg::CoordPersonList person_list;
-		int size;
-		std::lock_guard<std::mutex> lock(mtx_);
+
+		if (test_mode_)
 		{
-			person_list = queue_persons_.front();
-			queue_persons_.pop();
+			process(test_x1_, test_y1_, test_x2_, test_y2_, theta_x_, r_);
 		}
-		size = person_list.persons.size();
-		int x1,y1, x2,y2;
-		for (int i = 0; i < size; i++)
+		else if(!queue_persons_.empty())
 		{
-			x1 = person_list.persons[i].x1;
-			y1 = person_list.persons[i].y1;
-			x2 = person_list.persons[i].x2;
-			y2 = person_list.persons[i].y2;
-			RCLCPP_INFO_STREAM(logger_, "x1: " << x1 << " y1: " << y1 << " x2: " << x2 << " y2: " << y2);
-			process(x1, y1, x2, y2, theta_x_, r_);
+			// RCLCPP_INFO(logger_, "************ entry ************");
+			astra_camera_msgs::msg::CoordPersonList person_list;
+			int size;
+			std::lock_guard<std::mutex> lock(mtx_);
+			{
+				person_list = queue_persons_.front();
+				queue_persons_.pop();
+			}
+			size = person_list.persons.size();
+			int x1,y1, x2,y2;
+			for (int i = 0; i < size; i++)
+			{
+				x1 = person_list.persons[i].x1;
+				y1 = person_list.persons[i].y1;
+				x2 = person_list.persons[i].x2;
+				y2 = person_list.persons[i].y2;
+				// RCLCPP_INFO_STREAM(logger_, "x1: " << x1 << " y1: " << y1 << " x2: " << x2 << " y2: " << y2);
+				process(x1, y1, x2, y2, theta_x_, r_);
+			}
 		}
-	}
-	if ((test_mode_ || !queue_persons_.empty()))
-	{
 		msg_pub.data.clear();
 		if(filter_bool_)
 		{
@@ -176,6 +173,7 @@ void PointsPersonTF::cb_points(const sensor_msgs::msg::PointCloud2::SharedPtr ms
 		delete[] frame_data_;
 		frame_data_ = NULL;
 	}
+	processed_.clear();
 	pub_points_->publish(msg_pub);
 }
 
