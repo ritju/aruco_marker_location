@@ -144,6 +144,8 @@ void PointCloudXyzNode::depthCb(const Image::ConstSharedPtr &depth_msg,
 	// RCLCPP_INFO(this->get_logger(), "cost time: %.0f ms.", (end.seconds() - start.seconds()) * 1000);
 
 	pub_point_cloud_->publish(*cloud_msg);
+	usleep(1000 * 100);
+	pub_point_cloud_->publish(*cloud_msg);
 }
 
 }  // namespace astra_camera

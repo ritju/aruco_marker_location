@@ -217,6 +217,12 @@ void PointsPersonTF::cb_points(const sensor_msgs::msg::PointCloud2::SharedPtr ms
 				// RCLCPP_INFO_STREAM(logger_, "x1: " << x1 << " y1: " << y1 << " x2: " << x2 << " y2: " << y2);
 				process(x1, y1, x2, y2, theta_x_, r_);
 			}
+
+			msg_pub.data.clear();
+			for (int i = 0; i < data_count_; i++)
+			{
+				msg_pub.data.push_back(frame.data[i]);
+			}
 		}
 		delete[] frame_data_;
 		frame_data_ = NULL;
@@ -242,6 +248,13 @@ void PointsPersonTF::process(int x1, int y1, int x2, int y2, float theta, int r)
 		start_y = std::max((y1 + y2) / 2  - r_, y1);
 		end_y = std::min((y1 + y2) / 2 + r_, y2);
 	}
+
+	// fix bug for coord ranges
+	start_y = std::min(std::max(start_y, 0), height_ - 1);
+	end_y = std::min(std::max(start_y, 0), height_ - 1);
+	x1 = std::min(std::max(x1, 0), width_ - 1);
+	x2 = std::min(std::max(x1, 0), width_ - 1);
+	
 	// RCLCPP_INFO(logger_, "start_y: %d, end_y: %d", start_y, end_y );
 	for (int j = start_y; j <= end_y; j++)
 	{
