@@ -15,7 +15,7 @@ def launch_setup(context, *args, **kwargs):
         'marker_id': LaunchConfiguration('marker_id'),
         'reference_frame': LaunchConfiguration('reference_frame'),
         # 'camera_frame': 'stereo_gazebo_' + eye + '_camera_optical_frame',
-        'camera_frame': 'camera_link',
+        'camera_frame': 'camera3_depth_optical_frame',
         'marker_frame': LaunchConfiguration('marker_frame'),
         'P_uncertain': LaunchConfiguration('P_uncertain'),
         'R_uncertain': LaunchConfiguration('R_uncertain'),
@@ -27,8 +27,8 @@ def launch_setup(context, *args, **kwargs):
         parameters=[aruco_single_params],
         # remappings=[('/camera_info', '/stereo/' + eye + '/camera_info'),
         #             ('/image', '/stereo/' + eye + '/image_rect_color')],
-        remappings=[('/camera_info', '/camera/' + 'color' + '/camera_info'),
-                    ('/image', '/camera/' + 'color' + '/image_raw')],
+        remappings=[('/camera_info', '/camera3/' + 'color' + '/camera_info'),
+                    ('/image', '/camera3/' + 'color' + '/image_raw')],
     )
 
     return [aruco_single]

@@ -27,9 +27,16 @@ def duplicate_params(general_params, posix, serial_number):
     local_params["serial_number"] = serial_number
     return local_params
 
-serial_number1 = "CH2R73100JN" #front-up CH2R73100ES
-serial_number2 = "CH282310048" #front-down
-serial_number3 = "CH2B53100KR" #back
+# MK4
+# serial_number1 = "CH2R73100JN" #front-up CH2R73100ES
+# serial_number2 = "CH282310048" #front-down
+# serial_number3 = "CH2B53100KR" #back
+
+# MK5
+serial_number1 = "CH2B531000D" #front-up CH2R73100ES
+serial_number2 = "CH2B531001V" #front-down
+serial_number3 = "CH2B531001S" #back
+
 params1 = duplicate_params(default_params, "1", serial_number1)
 params2 = duplicate_params(default_params, "2", serial_number2)
 params3 = duplicate_params(default_params, "3", serial_number3)
@@ -101,17 +108,6 @@ def generate_launch_description():
     with open(params_file, 'r') as file:
         default_params = yaml.safe_load(file)
 
-    # serial_number1 =  "CH2R73100ES"#前上
-    # serial_number2 = "CH2R73100JN" #前下
-    # serial_number3 = "CH2B53100KR" #后
-
-    serial_number1 = "CH2R73100ES"#前上
-    serial_number2 = "CH2R73100JN" #前下
-    serial_number3 = "CH2B53100KR" #后
-
-    params1 = duplicate_params(default_params, "1", serial_number1)
-    params2 = duplicate_params(default_params, "2", serial_number2)
-    params3 = duplicate_params(default_params, "3", serial_number3)
     container1 = generate_container_node("camera1", params1)
     container2 = generate_container_node("camera2", params2)
     container3 = generate_container_node("camera3", params3)

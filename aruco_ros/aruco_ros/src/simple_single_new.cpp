@@ -88,10 +88,12 @@ rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub;
 rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr pixel_pub;
 rclcpp::Publisher<capella_ros_service_interfaces::msg::ChargeMarkerVisible>::SharedPtr detect_status;
 rclcpp::TimerBase::SharedPtr marker_timer;
-std::string marker_frame;
-std::string camera_frame;
+std::string marker_frame{"marker_frame"};
+std::string camera_frame{"camera_depth_optical_frame"};
+std::string base_link{"base_link"};
 std::string reference_frame;
 std::string marker_frame_dummy{"aruco_marker_frame_dummy"};
+std::string marker_frame_dummy2{"aruco_marker_frame_dummy2"}; // for calculating camera pose
 
 double marker_size;
 int marker_id;
@@ -169,9 +171,29 @@ void marker_visible_callback()
 			}
 		}
 	}
-
-
 }
+
+
+void publish_poseMsg(rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher,
+                     builtin_interfaces::msg::Time stamp, std::string frame_id, tf2::Transform tf)
+{
+	geometry_msgs::msg::PoseStamped msg;
+	tf2::toMsg(tf, msg.pose);
+	msg.header.stamp = stamp;
+	msg.header.frame_id = frame_id;
+	publisher->publish(msg);
+}
+
+void send_transform(std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster, std::string parent_id, builtin_interfaces::msg::Time stamp, std::string child_id, tf2::Transform tf)
+{
+	geometry_msgs::msg::TransformStamped stampedTransform;
+	stampedTransform.header.frame_id = parent_id;
+	stampedTransform.header.stamp = stamp;
+	stampedTransform.child_frame_id = child_id;
+	tf2::toMsg(tf, stampedTransform.transform);
+	tf_broadcaster_->sendTransform(stampedTransform);
+}
+
 void odom_callback(const nav_msgs::msg::Odometry &odom_sub)
 {
 	// RCLCPP_INFO(this->get_logger(), "******in odom callback********");
@@ -410,44 +432,19 @@ void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 				if (markers[i].id == marker_id) {
 					tf2::Transform transform = aruco_ros::arucoMarker2Tf2(markers[i]);
 					tf2::Transform transform_init = transform;
+					tf2::Transform transform_init_inverse = transform_init.inverse();
 
-					// print translation x,y,z and the rotation yaw.
-					auto r_tmp = transform.getRotation();
-					auto o_tmp = transform.getOrigin();
-					RCLCPP_INFO_STREAM(get_logger(), "x: " << o_tmp.getX() << ", y: " << o_tmp.getY() << ", z: " << o_tmp.getZ());
-					RCLCPP_INFO_STREAM(get_logger(), "yaw: " << tf2::getYaw(r_tmp));
-					RCLCPP_INFO(get_logger(), "---------------------------------------");
-
-					tf2::Transform tf_baselink_to_marker_dummy;
-					tf_baselink_to_marker_dummy.setIdentity();
-					tf_baselink_to_marker_dummy.setOrigin(tf2::Vector3(-1.835, 0.045, 0.1915));
-					tf2::Quaternion q_baselink_to_marker_dummy;
-					q_baselink_to_marker_dummy.setRPY(0.0,0.0, -M_PI);
-					tf_baselink_to_marker_dummy.setRotation(q_baselink_to_marker_dummy);
-
-
-					geometry_msgs::msg::TransformStamped stampedTransform1;
-					stampedTransform1.header.frame_id = std::string("base_link");
-					stampedTransform1.header.stamp = curr_stamp;
-					stampedTransform1.child_frame_id = std::string("aruco_marker_frame_dummy2");
-					tf2::toMsg(tf_baselink_to_marker_dummy, stampedTransform1.transform);
-					tf_broadcaster_->sendTransform(stampedTransform1);
-
-
+					publish_poseMsg(pose_cdo2m_pub, curr_stamp, marker_frame, transform_init_inverse);
+					
 					/**
 					 * using camera orientation as a reference 2023-09-21
-					 * camera_frame x=>rigth, y=>down , z=> front
+					 * camera_frame x=>right, y=>down , z=> front
 					 * camera_depth_optical_frame x=>right, y=>down z=>front
 					 * the two frames are same.
 					 * */
 
 					tf2::Stamped<tf2::Transform> cameraToReference;
 					cameraToReference.setIdentity();
-					// tf2::Quaternion q;
-					// q.setRPY(M_PI/2, 0, M_PI/2); // reference frame: x=>front, y=>left, z=>up
-					//                              // camera frame: x=>left, y=>up, z=>front
-
-					// cameraToReference.setRotation(q);
 					if (reference_frame != camera_frame) {
 						geometry_msgs::msg::TransformStamped transform_stamped;
 						getTransform(reference_frame, camera_frame, transform_stamped);
@@ -458,7 +455,15 @@ void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 					transform = static_cast<tf2::Transform>(cameraToReference) *
 					            static_cast<tf2::Transform>(rightToLeft) *
 					            transform;
-					
+					// tf2::Quaternion rotate_transform;
+					// rotate_transform.setRPY(-M_PI/2, M_PI/2, 0);
+					// tf2::Transform rotate;
+					// rotate.setIdentity();
+					// rotate.setRotation(rotate_transform);
+					// transform *= rotate;
+					// auto transform_inverse = transform;
+
+
 					// ---------------- Kalman start ----------------
 					// double roll_kal, pitch_kal, yaw_kal;
 					// auto rotation = transform.getRotation();
@@ -471,13 +476,13 @@ void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 
 					// // RCLCPP_INFO(this->get_logger(), "translation_x = %f", transform.getOrigin()[0]);
 					// // RCLCPP_INFO(this->get_logger(), "translation_y = %f", transform.getOrigin()[1]);
-					
+
 					// transform.getOrigin()[0] = camera_pose_info.kalman_output[0];
 					// transform.getOrigin()[1] = camera_pose_info.kalman_output[1];
 
 					// // RCLCPP_INFO(this->get_logger(), "kal_translation_x = %f", transform.getOrigin()[0]);
 					// // RCLCPP_INFO(this->get_logger(), "kal_translation_y = %f", transform.getOrigin()[1]);
-					
+
 					// tf2::Quaternion rotate_yaw;
 					// rotate_yaw.setRPY(roll_kal, pitch_kal, camera_pose_info.kalman_output[2]);
 					// transform.setRotation(rotate_yaw);
@@ -502,8 +507,18 @@ void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 
 					odom_pub_ = false;
 
+					// set tf for calculate camera pose wrt base_link
+					tf2::Transform tf_baselink_to_marker_dummy2;
+					tf_baselink_to_marker_dummy2.setIdentity();
+					tf_baselink_to_marker_dummy2.setOrigin(tf2::Vector3(-1.835, 0.045, 0.1915));
+					tf2::Quaternion q_baselink_to_marker_dummy2;
+					q_baselink_to_marker_dummy2.setRPY(0.0,0.0, -M_PI);
+					tf_baselink_to_marker_dummy2.setRotation(q_baselink_to_marker_dummy2);
 
-					tf2::Transform tf_baselink_to_camera, tf_depth_to_optical;
+					// send tf from base_link to marker_frame_dummy2
+					send_transform(std::move(tf_broadcaster_), base_link, curr_stamp, marker_frame_dummy2, tf_baselink_to_marker_dummy2);
+
+					tf2::Transform tf_baselink_to_camera, tf_optical_to_depth;
 					geometry_msgs::msg::TransformStamped stamped_tf_depth_to_optical;
 					if(!getTransform(std::string("camera3_depth_optical_frame"), std::string("camera3_depth_frame"),stamped_tf_depth_to_optical))
 					{
@@ -511,17 +526,17 @@ void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 					}
 					tf2::Stamped<tf2::Transform> tf_depth_to_optical_stamped;
 					tf2::fromMsg(stamped_tf_depth_to_optical, tf_depth_to_optical_stamped);
-					tf_depth_to_optical = static_cast<tf2::Transform>(tf_depth_to_optical_stamped);
-					tf_baselink_to_camera = tf_baselink_to_marker_dummy * (tf_camera_to_dummy_marker.inverse()) * tf_depth_to_optical;
+					tf_optical_to_depth = static_cast<tf2::Transform>(tf_depth_to_optical_stamped);
+					tf_baselink_to_camera = tf_baselink_to_marker_dummy2 * (tf_camera_to_dummy_marker.inverse()) * tf_optical_to_depth;
 
+					// print camera pose value
 					auto r_tmp1 = tf_baselink_to_camera.getRotation();
 					auto o_tmp1 = tf_baselink_to_camera.getOrigin();
 					RCLCPP_INFO_STREAM(get_logger(), "x: " << o_tmp1.getX() << ", y: " << o_tmp1.getY() << ", z: " << o_tmp1.getZ());
-					
-					
 					double roll, pitch, yaw;
 					tf2::getEulerYPR(r_tmp1, yaw, pitch, roll);
 					RCLCPP_INFO_STREAM(get_logger(), "roll: " << roll << ", pitch: " << pitch <<  ", yaw: " << yaw);
+
 					geometry_msgs::msg::TransformStamped stampedTransform2;
 					stampedTransform2.header.frame_id = std::string("aruco_marker_frame_dummy2");
 					stampedTransform2.header.stamp = curr_stamp;
@@ -540,9 +555,9 @@ void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 					stampedTransform4.header.frame_id = std::string("camera3_depth_optical_dummy");
 					stampedTransform4.header.stamp = curr_stamp;
 					stampedTransform4.child_frame_id = std::string("camera3_depth_dummy");
-					tf2::toMsg(tf_depth_to_optical, stampedTransform4.transform);
+					tf2::toMsg(tf_optical_to_depth, stampedTransform4.transform);
 					tf_broadcaster_->sendTransform(stampedTransform4);
-					
+
 					geometry_msgs::msg::TransformStamped stampedTransform;
 					stampedTransform.header.frame_id = reference_frame;
 					stampedTransform.header.stamp = curr_stamp;
@@ -550,8 +565,8 @@ void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 					tf2::toMsg(tf_camera_to_dummy_marker, stampedTransform.transform);
 					tf_broadcaster_->sendTransform(stampedTransform);
 					// RCLCPP_INFO(this->get_logger(), "parent frame: %s, child frame: %s", reference_frame.c_str(), marker_frame.c_str());
-					
-					
+
+
 					tf2::Transform tf_dummy_marker_to_base_link;
 					geometry_msgs::msg::TransformStamped stamped_tf_base_link_to_optical;
 					if(!getTransform(std::string("base_link"), std::string("camera3_depth_optical_frame"),stamped_tf_base_link_to_optical))
@@ -576,12 +591,6 @@ void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 					poseMsg.header.stamp = curr_stamp;
 					pose_pub->publish(poseMsg);
 					transform_pub->publish(stampedTransform);
-
-					geometry_msgs::msg::PoseStamped poseMsg_cdo2m;
-					tf2::toMsg(transform_init.inverse(), poseMsg_cdo2m.pose);
-					poseMsg_cdo2m.header.frame_id = marker_frame;
-					poseMsg_cdo2m.header.stamp = curr_stamp;
-					pose_cdo2m_pub->publish(poseMsg_cdo2m);
 
 					geometry_msgs::msg::Vector3Stamped positionMsg;
 					positionMsg.header = stampedTransform.header;
@@ -703,6 +712,8 @@ void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 		}
 	}
 }
+
+
 
 // wait for one camerainfo, then shut down that subscriber
 void cam_info_callback(const sensor_msgs::msg::CameraInfo & msg)
