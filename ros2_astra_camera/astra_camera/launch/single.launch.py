@@ -15,10 +15,14 @@ def launch_setup(context, *args, **kwargs):
         'marker_id': LaunchConfiguration('marker_id'),
         'reference_frame': LaunchConfiguration('reference_frame'),
         # 'camera_frame': 'stereo_gazebo_' + eye + '_camera_optical_frame',
-        'camera_frame': 'camera3_depth_optical_frame',
+        'camera_frame': 'camera_link',
         'marker_frame': LaunchConfiguration('marker_frame'),
         'P_uncertain': LaunchConfiguration('P_uncertain'),
         'R_uncertain': LaunchConfiguration('R_uncertain'),
+        'Q_uncertain': LaunchConfiguration('Q_uncertain'),
+        'P_uncertain_ekf': LaunchConfiguration('P_uncertain_ekf'),
+        'R_uncertain_ekf': LaunchConfiguration('R_uncertain_ekf'),
+        'Q_uncertain_ekf': LaunchConfiguration('Q_uncertain_ekf'),
     }
 
     aruco_single = Node(
@@ -27,8 +31,8 @@ def launch_setup(context, *args, **kwargs):
         parameters=[aruco_single_params],
         # remappings=[('/camera_info', '/stereo/' + eye + '/camera_info'),
         #             ('/image', '/stereo/' + eye + '/image_rect_color')],
-        remappings=[('/camera_info', '/camera3/' + 'color' + '/camera_info'),
-                    ('/image', '/camera3/' + 'color' + '/image_raw')],
+        remappings=[('/camera_info', '/camera/' + 'color' + '/camera_info'),
+                    ('/image', '/camera/' + 'color' + '/image_raw')],
     )
 
     return [aruco_single]
@@ -58,7 +62,7 @@ def generate_launch_description():
     )
 
     reference_frame = DeclareLaunchArgument(
-        'reference_frame', default_value='',
+        'reference_frame', default_value='camera_depth_optical_frame',
         description='Reference frame. '
         'Leave it empty and the pose will be published wrt param parent_name. '
     )
@@ -70,48 +74,34 @@ def generate_launch_description():
     )
 
     R_uncertain_arg = DeclareLaunchArgument(
-        'R_uncertain', default_value='50.0',
+        'R_uncertain', default_value='5.0',
         description='R_uncertain',
     )
     Q_uncertain_arg = DeclareLaunchArgument(
-        'Q_uncertain', default_value='0.00001',
+        'Q_uncertain', default_value='0.1',
         description='Q_uncertain',
     )
 
     P_uncertain_arg = DeclareLaunchArgument(
-        'P_uncertain', default_value='1.0',
+        'P_uncertain', default_value='0.1',
         description='P_uncertain',
     )
 
-    r_uncertain_x = DeclareLaunchArgument(
-        'r_uncertain_x', default_value='10',
-        description='r_uncertain_x',
+    R_uncertain_ekf_arg = DeclareLaunchArgument(
+        'R_uncertain_ekf', default_value='5.0',
+        description='R_uncertain_ekf',
+    )
+    Q_uncertain_ekf_arg = DeclareLaunchArgument(
+        'Q_uncertain_ekf', default_value='0.1',
+        description='Q_uncertain_ekf',
     )
 
-    r_uncertain_y = DeclareLaunchArgument(
-        'r_uncertain_y', default_value='0.2',
-        description='r_uncertain_y',
+    P_uncertain_ekf_arg = DeclareLaunchArgument(
+        'P_uncertain_ekf', default_value='0.1',
+        description='P_uncertain_ekf',
     )
 
-    r_uncertain_theta = DeclareLaunchArgument(
-        'r_uncertain_theta', default_value='0.2',
-        description='r_uncertain_theta',
-    )
 
-    q_uncertain_x = DeclareLaunchArgument(
-        'q_uncertain_x', default_value='0.1',
-        description='q_uncertain_x',
-    )
-
-    q_uncertain_y = DeclareLaunchArgument(
-        'q_uncertain_y', default_value='0.1',
-        description='q_uncertain_y',
-    )
-
-    q_uncertain_theta = DeclareLaunchArgument(
-        'q_uncertain_theta', default_value='0.1',
-        description='q_uncertain_theta',
-    )
 
     # Create the launch description and populate
     ld = LaunchDescription()
@@ -125,6 +115,9 @@ def generate_launch_description():
     ld.add_action(P_uncertain_arg)
     ld.add_action(R_uncertain_arg)
     ld.add_action(Q_uncertain_arg)
+    ld.add_action(P_uncertain_ekf_arg)
+    ld.add_action(R_uncertain_ekf_arg)
+    ld.add_action(Q_uncertain_ekf_arg)
 
     ld.add_action(OpaqueFunction(function=launch_setup))
 

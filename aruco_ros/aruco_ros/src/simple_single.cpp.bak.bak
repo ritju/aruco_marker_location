@@ -57,11 +57,10 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "sensor_msgs/msg/point_cloud.hpp"
 #include "sensor_msgs/point_cloud_conversion.hpp"
-#include "tf2/utils.h"
-#include "aruco_msgs/msg/kalman_filter_test_msg.hpp"
+#include <chrono>
+#include "tf2/convert.h"
 
-
-
+using namespace std::chrono_literals;
 
 class ArucoSimple : public rclcpp::Node
 {
@@ -75,19 +74,17 @@ aruco::MarkerDetector mDetector;
 std::vector<aruco::Marker> markers;
 rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr cam_info_sub;
 rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub;
+float odom_rotation_vel;
 rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr depth_cloud_sub;
 std::vector<sensor_msgs::msg::PointCloud2> point_cloud_queue_;
 bool cam_info_received;
 image_transport::Publisher image_pub;
 image_transport::Publisher debug_pub;
 rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub;
-rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_cdo2m_pub; // cdo => camera_depth_optical m => marker
+rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr base_link_pose_pub;
+rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_kf;
 rclcpp::Publisher<geometry_msgs::msg::TransformStamped>::SharedPtr transform_pub;
 rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr position_pub;
-
-rclcpp::Publisher<aruco_msgs::msg::KalmanFilterTestMsg>::SharedPtr kalman_before_pub;
-rclcpp::Publisher<aruco_msgs::msg::KalmanFilterTestMsg>::SharedPtr kalman_after_pub;
-
 // rviz visualization marker
 rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub;
 rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr pixel_pub;
@@ -96,7 +93,6 @@ rclcpp::TimerBase::SharedPtr marker_timer;
 std::string marker_frame;
 std::string camera_frame;
 std::string reference_frame;
-std::string marker_frame_dummy{"aruco_marker_frame_dummy"};
 
 double marker_size;
 int marker_id;
@@ -110,10 +106,16 @@ std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 double linear_x_;
 double angular_z_;
 rclcpp::Time vel_time_;
-double intervel;
-bool init_first_time;
+double intervel, intervel_kf;
+bool init_first_time_kf, init_first_time_ekf;
 double p_uncertain, r_uncertain, q_uncertain;
+double p_uncertain_ekf, r_uncertain_ekf, q_uncertain_ekf;
+
 bool odom_pub_;
+std::shared_ptr<tf2_ros::TransformListener> aruco_to_baselink;
+std::shared_ptr<tf2_ros::Buffer> buffer;
+geometry_msgs::msg::TransformStamped latest_transform;
+
 struct kalman_info
 {
 	Eigen::Vector3d kalman_output;
@@ -127,52 +129,90 @@ struct kalman_info
 	Eigen::Matrix3d P0;
 	// double u;
 };
-kalman_info camera_pose_info;
-// void Init_kalman_info(kalman_info* info, double t, Eigen::Vector3d measurement)
-// {
-// 	info->A << 1,0,0, 0,1,0, 0,0,1;
-// 	// info->B << pow(t, 2)/2, pow(t, 2)/2, t, t;
-// 	// info->Q << pow(t, 2)/4,0,pow(t, 3)/2,0, 0,pow(t, 2)/4,0,pow(t, 3)/2, pow(t, 3)/2,0,pow(t, 2),0, 0,pow(t, 3)/2,0,pow(t, 2); //预测方差
-
-
-// 	if (init_first_time)
-// 	{
-// 		info->P.Identity(); //后验状态估计值方差的初值
-// 		info->P *= p_uncertain;
-// 		info->R << 1,0,0, 0,1,0, 0,0,1; //观测噪声方差
-// 		info->R *= r_uncertain;
-// 		info->Q << 1,0,0, 0,1,0, 0,0,1; //预测方差
-// 		info->Q *= q_uncertain;
-// 		info->H << 1,0,0, 0,1,0, 0,0,1;
-// 		info->kalman_output << measurement;
-// 		init_first_time = false;
-// 		// 测量的初始值
-// 		// info->u = 1e-3;
-// 		info->P0.setIdentity();
-// 		RCLCPP_INFO(this->get_logger(), "Init for the first time !");
-// 	}
-
-// }
-
+kalman_info camera_pose_info_kf;
 void Init_kalman_info(kalman_info* info, double t, Eigen::Vector3d measurement)
 {
-info->A << 1,0,0, 0,1,0, 0,0,1;
+	info->A << 1,0,0, 0,1,0, 0,0,1;
+	// info->B << pow(t, 2)/2, pow(t, 2)/2, t, t;
+	// info->Q << pow(t, 2)/4,0,pow(t, 3)/2,0, 0,pow(t, 2)/4,0,pow(t, 3)/2, pow(t, 3)/2,0,pow(t, 2),0, 0,pow(t, 3)/2,0,pow(t, 2); //预测方差
 
 
-if (init_first_time)
-{
-info->P.Identity(); //后验状态估计值方差的初值
-info->P *= p_uncertain;
-info->R << r_uncertain_x,0,0, 0,r_uncertain_y,0, 0,0,r_uncertain_theta; //观测噪声方差
-info->Q << q_uncertain_x,0,0, 0,q_uncertain_y,0, 0,0,q_uncertain_theta; //预测方差
-info->H << 1,0,0, 0,1,0, 0,0,1;
-info->kalman_output << measurement;
-init_first_time = false;
-// 测量的初始值
-// info->u = 1e-3;
-info->P0.setIdentity();
-// RCLCPP_INFO(this->get_logger(), "Init for the first time !");
+	if (init_first_time_kf)
+	{
+		info->P.Identity(); //后验状态估计值方差的初值
+		info->P *= p_uncertain;
+		info->R << 1,0,0, 0,1,0, 0,0,1; //观测噪声方差
+		info->R *= r_uncertain;
+		info->Q << 1,0,0, 0,1,0, 0,0,1; //预测方差
+		info->Q *= q_uncertain;
+		info->H << 1,0,0, 0,1,0, 0,0,1;
+		info->kalman_output << measurement;
+		init_first_time_kf = false;
+		// 测量的初始值
+		// info->u = 1e-3;
+		info->P0.setIdentity();
+		// RCLCPP_INFO(this->get_logger(), "Init for the first time !");
+	}
+
 }
+
+
+struct kalman_info_ekf
+{
+	Eigen::Vector<double, 5> kalman_output; //x, y, v, theta, omega
+	Eigen::Matrix<double, 5, 3> kalman_gain;
+	Eigen::Matrix<double, 5, 5> A;
+	// Eigen::Vector3d B;
+	Eigen::Matrix<double, 3, 5> H;
+	Eigen::Matrix<double, 5, 5> Q;
+	Eigen::Matrix<double, 3, 3> R;
+	Eigen::Matrix<double, 5, 5> P;
+	Eigen::Matrix<double, 5, 5> P0;
+	// double u;
+};
+kalman_info_ekf camera_pose_info_ekf;
+void Init_kalman_info_ekf(kalman_info_ekf* info, Eigen::Vector<double, 5> measurement, double delta_t)
+{
+	if (measurement[4] == 0)
+	{
+		measurement[4] == 0.001;
+	}
+
+	info->A << 1,0,-delta_t*cos(measurement[3]-measurement[4]*delta_t),measurement[2]*delta_t*sin(measurement[3]-measurement[4]*delta_t), -measurement[2]*pow(delta_t, 2)*sin(measurement[3]-measurement[4]*delta_t) ,
+		   0,1,delta_t*sin(measurement[3]-measurement[4]*delta_t),measurement[2]*delta_t*cos(measurement[3]-measurement[4]*delta_t),-measurement[2]*pow(delta_t, 2)*cos(measurement[3]-measurement[4]*delta_t), 
+		   0,0,1,0,0,
+		   0,0,0,1,-delta_t,
+		   0,0,0,0,1;
+	
+	// auto now = rclcpp::Clock();
+	// RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), now, 1000, "info->A" << info->A);
+	// RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), now, 1000, "info->kalman_output" << info->kalman_output);
+
+
+
+	
+	// info->B << pow(t, 2)/2, pow(t, 2)/2, t, t;
+	// info->Q << pow(t, 2)/4,0,pow(t, 3)/2,0, 0,pow(t, 2)/4,0,pow(t, 3)/2, pow(t, 3)/2,0,pow(t, 2),0, 0,pow(t, 3)/2,0,pow(t, 2); //预测方差
+
+
+	if (init_first_time_ekf)
+	{
+		info->P.Identity(); //后验状态估计值方差的初值
+		info->P *= p_uncertain_ekf;
+		info->R << 1,0,0,  0,1,0,  0,0,1; //观测噪声方差
+		info->R *= r_uncertain_ekf;
+		info->Q << 1,0,0,0,0,  0,1,0,0,0,  0,0,1,0,0,  0,0,0,1,0, 0,0,0,0,1; //预测方差
+		info->Q *= q_uncertain_ekf;
+		info->H << 1,0,0,0,0,  0,1,0,0,0,  0,0,0,1,0;
+		info->kalman_output << measurement;
+		// RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), now, 1000, "info->kalman_output first: " << info->kalman_output);
+
+		init_first_time_ekf = false;
+		// 测量的初始值
+		// info->u = 1e-3;
+		info->P0.setIdentity();
+		RCLCPP_INFO(this->get_logger(), "Init for the first time !");
+	}
 
 }
 
@@ -211,6 +251,7 @@ void odom_callback(const nav_msgs::msg::Odometry &odom_sub)
 	else
 		angular_z_ = 0;
 	vel_time_ = odom_sub.header.stamp;
+	odom_rotation_vel = odom_sub.twist.twist.angular.z;
 	odom_pub_ = true;
 }
 
@@ -239,7 +280,8 @@ ArucoSimple()
 	linear_x_ = 0;
 	angular_z_ = 0;
 	intervel = 0.1;
-	init_first_time = true;
+	init_first_time_kf = true;
+	init_first_time_ekf = true;
 	odom_pub_ = false;
 }
 
@@ -290,24 +332,18 @@ bool setup()
 	this->declare_parameter<double>("Q_uncertain", 1);
 
 
-	this->declare_parameter<double>("r_uncertain_x", 1.0);
-	this->declare_parameter<double>("r_uncertain_y", 1.0);
-	this->declare_parameter<double>("r_uncertain_theta", 5.0);
-	this->declare_parameter<double>("q_uncertain_x", 0.1);
-	this->declare_parameter<double>("q_uncertain_y", 0.1);
-	this->declare_parameter<double>("q_uncertain_theta", 0.1);
-
-
 	this->get_parameter_or<double>("P_uncertain", p_uncertain, 1);
 	this->get_parameter_or<double>("R_uncertain", r_uncertain, 1);
 	this->get_parameter_or<double>("Q_uncertain", q_uncertain, 1);
 
-	this->get_parameter_or<double>("r_uncertain_x", r_uncertain_x, 1.0);
-	this->get_parameter_or<double>("r_uncertain_y", r_uncertain_y, 1.0);
-	this->get_parameter_or<double>("r_uncertain_theta", r_uncertain_theta, 5.0);
-	this->get_parameter_or<double>("q_uncertain_x", q_uncertain_x, 0.1);
-	this->get_parameter_or<double>("q_uncertain_y", q_uncertain_y, 0.1);
-	this->get_parameter_or<double>("q_uncertain_theta", q_uncertain_theta, 0.1);
+	this->declare_parameter<double>("P_uncertain_ekf", 1);
+	this->declare_parameter<double>("R_uncertain_ekf", 1);
+	this->declare_parameter<double>("Q_uncertain_ekf", 1);
+
+
+	this->get_parameter_or<double>("P_uncertain_ekf", p_uncertain_ekf, 1);
+	this->get_parameter_or<double>("R_uncertain_ekf", r_uncertain_ekf, 1);
+	this->get_parameter_or<double>("Q_uncertain_ekf", q_uncertain_ekf, 1);
 
 	float min_marker_size; // percentage of image area
 	this->get_parameter_or<float>("min_marker_size", min_marker_size, 0.02);
@@ -338,15 +374,16 @@ bool setup()
 	image_pub = it_->advertise(this->get_name() + std::string("/result"), 1);
 	debug_pub = it_->advertise(this->get_name() + std::string("/debug"), 1);
 	pose_pub = subNode->create_publisher<geometry_msgs::msg::PoseStamped>("pose", 100);
-	pose_cdo2m_pub = subNode->create_publisher<geometry_msgs::msg::PoseStamped>("pose_cdo2m", 100);
 	transform_pub =
 		subNode->create_publisher<geometry_msgs::msg::TransformStamped>("transform", 100);
+
+	base_link_pose_pub = subNode->create_publisher<geometry_msgs::msg::PoseStamped>("base_link_pose", 100);
+	pose_pub_kf = subNode->create_publisher<geometry_msgs::msg::PoseStamped>("pose_kf", 100);
+	buffer = std::make_shared<tf2_ros::Buffer>(subNode->get_clock());
+	aruco_to_baselink = std::make_shared<tf2_ros::TransformListener>(*buffer);
 	position_pub = subNode->create_publisher<geometry_msgs::msg::Vector3Stamped>("position", 100);
 	marker_pub = subNode->create_publisher<visualization_msgs::msg::Marker>("marker", 10);
 	pixel_pub = subNode->create_publisher<geometry_msgs::msg::PointStamped>("pixel", 10);
-
-	kalman_before_pub = subNode->create_publisher<aruco_msgs::msg::KalmanFilterTestMsg>("kalman_before", 30);
-	kalman_after_pub = subNode->create_publisher<aruco_msgs::msg::KalmanFilterTestMsg>("kalman_after", 30);
 
 
 
@@ -374,7 +411,7 @@ bool setup()
 		marker_size, marker_id);
 	RCLCPP_INFO(
 		this->get_logger(), "ArUco node will publish pose to TF with %s as parent and %s as child.",
-		marker_frame_dummy.c_str(),reference_frame.c_str());
+		reference_frame.c_str(), marker_frame.c_str());
 
 	// dyn_rec_server.setCallback(boost::bind(&ArucoSimple::reconf_callback, this, _1, _2));
 	RCLCPP_INFO(this->get_logger(), "Setup of aruco_simple node is successful!");
@@ -424,6 +461,43 @@ void kalman_filter(kalman_info* kalman_info, Eigen::Vector3d last_measurement)
 	kalman_info->P0 = kalman_info->P;
 }
 
+
+void kalman_filter_ekf(kalman_info_ekf* kalman_info, Eigen::Vector<double, 5> last_measurement, double delta_t)
+{
+	//预测下一时刻的值
+	Eigen::Vector<double, 5> predict_value;
+	predict_value[0] = kalman_info->kalman_output[0]-kalman_info->kalman_output[2]*delta_t*cos(kalman_info->kalman_output[3] - kalman_info->kalman_output[4]*delta_t);
+	predict_value[1] = kalman_info->kalman_output[1]+kalman_info->kalman_output[2]*delta_t*sin(kalman_info->kalman_output[3] - kalman_info->kalman_output[4]*delta_t);
+	predict_value[2] = kalman_info->kalman_output[2];
+	predict_value[3] = kalman_info->kalman_output[3]-kalman_info->kalman_output[4]*delta_t;
+	predict_value[4] = kalman_info->kalman_output[4];
+	auto now = rclcpp::Clock();
+	// RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), now, 1000, "predict_value" << predict_value);
+
+
+	//求协方差
+	kalman_info->P = kalman_info->A * kalman_info->P0 * kalman_info->A.transpose() + kalman_info->Q; //计算先验均方差 p(n|n-1)=A^2*p(n-1|n-1)+q
+	// RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), now, 1000, "kalman_info->P " << kalman_info->P);
+
+	Eigen::Matrix<double, 3, 3> S_t = kalman_info->H * kalman_info->P * kalman_info->H.transpose() + kalman_info->R;
+	// RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), now, 1000, "S_t " << S_t);
+	//计算kalman增益
+	kalman_info->kalman_gain = kalman_info->P * kalman_info->H.transpose() * S_t.inverse(); //Kg(k)= P(k|k-1) H’ / (H P(k|k-1) H’ + R)
+	// RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), now, 1000, "kalman_info->kalman_gain " << kalman_info->kalman_gain);
+	//修正结果，即计算滤波值
+	Eigen::Vector3d z_pre{predict_value[0], predict_value[1], predict_value[3]};
+	Eigen::Vector3d z_det{last_measurement[0], last_measurement[1], last_measurement[3]};
+
+
+	kalman_info->kalman_output = predict_value + kalman_info->kalman_gain * (z_det - z_pre); //利用残余的信息改善对x(t)的估计，给出后验估计，这个值也就是输出  X(k|k)= X(k|k-1)+Kg(k) (Z(k)-H X(k|k-1))
+	// RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), now, 1000, "kalman_info->kalman_output" << kalman_info->kalman_output);
+
+	//更新后验估计
+	kalman_info->P = kalman_info->P - kalman_info->kalman_gain * kalman_info->H * kalman_info->P;//计算后验均方差  P[n|n]=(1-K[n]*H)*P[n|n-1]
+	// RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), now, 1000, "kalman_info->P after " << kalman_info->kalman_output);
+	kalman_info->P0 = kalman_info->P;
+}
+
 void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 {
 	if ((image_pub.getNumSubscribers() == 0) &&
@@ -454,96 +528,6 @@ void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 				// only publishing the selected marker
 				if (markers[i].id == marker_id) {
 					tf2::Transform transform = aruco_ros::arucoMarker2Tf2(markers[i]);
-
-					// pub msg before kalman filter
-					aruco_msgs::msg::KalmanFilterTestMsg kalman_before_msg;
-					double x_before, y_before, z_before, roll_before, pitch_before, yaw_before;
-					tf2::getEulerYPR(transform.getRotation(), yaw_before, pitch_before, roll_before);
-					x_before = transform.getOrigin()[0];
-					y_before = transform.getOrigin()[1];
-					z_before = transform.getOrigin()[2];
-					
-					kalman_before_msg.data1 = roll_before;
-					kalman_before_msg.data2 = pitch_before;
-					kalman_before_msg.data3 = yaw_before;
-					kalman_before_pub->publish(kalman_before_msg);
-
-
-					// ---------------- Kalman start ----------------
-					double roll_kal, pitch_kal, yaw_kal;
-					auto rotation = transform.getRotation();
-					tf2::Matrix3x3(rotation).getRPY(roll_kal, pitch_kal, yaw_kal);
-					roll_kal = (roll_kal < 0 ? (-M_PI-roll_kal) : (M_PI-roll_kal));
-					intervel = (rclcpp::Clock().now().seconds() - vel_time_.seconds());
-					Eigen::Vector3d pose_and_vel_mea;
-					pose_and_vel_mea << roll_kal, pitch_kal, yaw_kal;
-					Init_kalman_info(&camera_pose_info, intervel, pose_and_vel_mea);
-					kalman_filter(&camera_pose_info, pose_and_vel_mea);
-					// camera_pose_info.kalman_output[0] = camera_pose_info.kalman_output[0] < 0 ? (-M_PI-camera_pose_info.kalman_output[0]) : (M_PI-camera_pose_info.kalman_output[0]);
-
-					// RCLCPP_INFO(this->get_logger(), "translation_x = %f", transform.getOrigin()[0]);
-					// RCLCPP_INFO(this->get_logger(), "translation_y = %f", transform.getOrigin()[1]);
-					
-					// transform.getOrigin()[0] = camera_pose_info.kalman_output[0];
-					// transform.getOrigin()[1] = camera_pose_info.kalman_output[1];
-
-					// RCLCPP_INFO(this->get_logger(), "kal_translation_x = %f", transform.getOrigin()[0]);
-					// RCLCPP_INFO(this->get_logger(), "kal_translation_y = %f", transform.getOrigin()[1]);
-					double temp_roll_kal = camera_pose_info.kalman_output[0] < 0 ? (-M_PI-camera_pose_info.kalman_output[0]) : (M_PI-camera_pose_info.kalman_output[0]);
-					tf2::Quaternion rotate_yaw;
-					rotate_yaw.setRPY(temp_roll_kal, camera_pose_info.kalman_output[1], camera_pose_info.kalman_output[2]);
-					// rotate_yaw.setRPY(camera_pose_info.kalman_output[0], camera_pose_info.kalman_output[1], camera_pose_info.kalman_output[2]);
-					transform.setRotation(rotate_yaw);
-					// ---------------- Kalman end ----------------
-
-
-					// pub msg after kalman filter
-					aruco_msgs::msg::KalmanFilterTestMsg kalman_after_msg;
-					double x_after, y_after, z_after, roll_after, pitch_after, yaw_after;
-					tf2::getEulerYPR(transform.getRotation(), yaw_after, pitch_after, roll_after);
-					x_after = transform.getOrigin()[0];
-					y_after = transform.getOrigin()[1];
-					z_after = transform.getOrigin()[2];
-					
-					kalman_after_msg.data1 = roll_after;
-					kalman_after_msg.data2 = pitch_after;
-					kalman_after_msg.data3 = yaw_after;
-					kalman_after_pub->publish(kalman_after_msg);
-
-
-
-					tf2::Transform transform_init = transform;
-
-					// print translation x,y,z and the rotation yaw.
-					auto r_tmp = transform.getRotation();
-					auto o_tmp = transform.getOrigin();
-					// RCLCPP_INFO_STREAM(get_logger(), "x: " << o_tmp.getX() << ", y: " << o_tmp.getY() << ", z: " << o_tmp.getZ());
-					// RCLCPP_INFO_STREAM(get_logger(), "yaw: " << tf2::getYaw(r_tmp));
-					// RCLCPP_INFO(get_logger(), "---------------------------------------");
-
-					tf2::Transform tf_baselink_to_marker_dummy;
-					tf_baselink_to_marker_dummy.setIdentity();
-					tf_baselink_to_marker_dummy.setOrigin(tf2::Vector3(-1.835, 0.045, 0.1915));
-					tf2::Quaternion q_baselink_to_marker_dummy;
-					q_baselink_to_marker_dummy.setRPY(0.0,0.0, -M_PI);
-					tf_baselink_to_marker_dummy.setRotation(q_baselink_to_marker_dummy);
-
-
-					geometry_msgs::msg::TransformStamped stampedTransform1;
-					stampedTransform1.header.frame_id = std::string("base_link");
-					stampedTransform1.header.stamp = curr_stamp;
-					stampedTransform1.child_frame_id = std::string("aruco_marker_frame_dummy2");
-					tf2::toMsg(tf_baselink_to_marker_dummy, stampedTransform1.transform);
-					tf_broadcaster_->sendTransform(stampedTransform1);
-
-
-					/**
-					 * using camera orientation as a reference 2023-09-21
-					 * camera_frame x=>rigth, y=>down , z=> front
-					 * camera_depth_optical_frame x=>right, y=>down z=>front
-					 * the two frames are same.
-					 * */
-
 					tf2::Stamped<tf2::Transform> cameraToReference;
 					cameraToReference.setIdentity();
 					// tf2::Quaternion q;
@@ -553,116 +537,135 @@ void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 					// cameraToReference.setRotation(q);
 					if (reference_frame != camera_frame) {
 						geometry_msgs::msg::TransformStamped transform_stamped;
-						getTransform(reference_frame, camera_frame, transform_stamped);
+						// getTransform(reference_frame, camera_frame, transform_stamped);
+						getTransform("fake_frame", "base_link", transform_stamped);
+
 						tf2::fromMsg(transform_stamped, cameraToReference);
-						RCLCPP_INFO(get_logger(), "get tf from camera to reference.");
 					}
 
-					transform = static_cast<tf2::Transform>(cameraToReference) *
-					            static_cast<tf2::Transform>(rightToLeft) *
-					            transform;
+					// transform = static_cast<tf2::Transform>(cameraToReference) *
+					//             static_cast<tf2::Transform>(rightToLeft) *
+					//             transform;
+					auto now = rclcpp::Clock();
+
+					// RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), now, 1000, "transform" << transform);
+
+
+					/*
+					Without kf or ekf
+					*/
+					geometry_msgs::msg::TransformStamped stampedTransform_before_kal;
+					stampedTransform_before_kal.header.frame_id = "a";
+					stampedTransform_before_kal.header.stamp = curr_stamp;
+					stampedTransform_before_kal.child_frame_id = "b";
+					tf2::toMsg(cameraToReference, stampedTransform_before_kal.transform);
+					tf_broadcaster_->sendTransform(stampedTransform_before_kal);
+
+					geometry_msgs::msg::PoseStamped poseMsg_before_kal;
+					poseMsg_before_kal.header = stampedTransform_before_kal.header;
+					tf2::toMsg(cameraToReference, poseMsg_before_kal.pose);
+					poseMsg_before_kal.header.frame_id = reference_frame;
+					poseMsg_before_kal.header.stamp = curr_stamp;
+					base_link_pose_pub->publish(poseMsg_before_kal);
+					/*
+					Without kf or ekf
+					*/
 					
+					/*kf*/
+					tf2::Stamped<tf2::Transform> transform_kf(cameraToReference);
+					double roll_kf, pitch_kf, yaw_kf;
+					auto rotation_kf = transform_kf.getRotation();
+					tf2::Matrix3x3(rotation_kf).getRPY(roll_kf, pitch_kf, yaw_kf);
+					intervel_kf = (rclcpp::Clock().now().seconds() - vel_time_.seconds());
+					Eigen::Vector<double, 3> pose_and_vel_mea_kf;
+					pose_and_vel_mea_kf << transform_kf.getOrigin()[0], transform_kf.getOrigin()[1], yaw_kf;
+					
+					RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), now, 1000, "pose_and_vel_mea" << pose_and_vel_mea_kf);
+					Init_kalman_info(&camera_pose_info_kf, intervel_kf, pose_and_vel_mea_kf);
+					kalman_filter(&camera_pose_info_kf, pose_and_vel_mea_kf);
+					// // RCLCPP_INFO(this->get_logger(), "kalman>translation_x = %f", transform.getOrigin()[0]);
+					// // RCLCPP_INFO(this->get_logger(), "Transform->translation_y = %f", transform.getOrigin()[1]);
+					transform_kf.getOrigin()[0] = camera_pose_info_kf.kalman_output[0];
+					transform_kf.getOrigin()[1] = camera_pose_info_kf.kalman_output[1];
+					// RCLCPP_INFO(this->get_logger(), "kalman>translation_y = %f", transform_inverse.getOrigin()[1]);
+
+					// RCLCPP_INFO(this->get_logger(), "Transform->translation_x = %f", transform.getOrigin()[0]);
+
+
+					// RCLCPP_INFO(this->get_logger(), "Transform->rotation_z = %f", yaw * 180/ M_PI);
+					tf2::Quaternion rotate_yaw_kf;
+					rotate_yaw_kf.setRPY(roll_kf, pitch_kf, camera_pose_info_kf.kalman_output[3]);
+					transform_kf.setRotation(rotate_yaw_kf);
+					/*kf*/
+
+					/*
+					kf 
+					*/
+					geometry_msgs::msg::TransformStamped stampedTransform_kf;
+					stampedTransform_kf.header.frame_id = "c";
+					stampedTransform_kf.header.stamp = curr_stamp;
+					stampedTransform_kf.child_frame_id = "d";
+					tf2::toMsg(transform_kf, stampedTransform_kf.transform);
+					tf_broadcaster_->sendTransform(stampedTransform_kf);
+
+					geometry_msgs::msg::PoseStamped poseMsg_kf;
+					poseMsg_kf.header = stampedTransform_kf.header;
+					tf2::toMsg(transform_kf, poseMsg_kf.pose);
+					poseMsg_kf.header.frame_id = reference_frame;
+					poseMsg_kf.header.stamp = curr_stamp;
+					pose_pub_kf->publish(poseMsg_kf);
+					/*
+					kf
+					*/
+
 					
 
 
-					// RCLCPP_INFO(this->get_logger(), "kalman>rotation_z = %f", camera_pose_info.kalman_output[2] * 180/ M_PI);
+					double roll, pitch, yaw;
+					auto rotation = cameraToReference.getRotation();
+					tf2::Matrix3x3(rotation).getRPY(roll, pitch, yaw);
+					RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), now, 500, "yaw: " << yaw << " , omega: " << odom_rotation_vel);
+
+					intervel = (rclcpp::Clock().now().seconds() - vel_time_.seconds());
+					Eigen::Vector<double, 5> pose_and_vel_mea;
+					pose_and_vel_mea << cameraToReference.getOrigin()[0], cameraToReference.getOrigin()[1], linear_x_, yaw, odom_rotation_vel;
+					
+					// RCLCPP_INFO_STREAM_THROTTLE(this->get_logger(), now, 1000, "pose_and_vel_mea" << pose_and_vel_mea);
+					Init_kalman_info_ekf(&camera_pose_info_ekf, pose_and_vel_mea, intervel);
+					kalman_filter_ekf(&camera_pose_info_ekf, pose_and_vel_mea, intervel);
+					// // RCLCPP_INFO(this->get_logger(), "kalman>translation_x = %f", transform.getOrigin()[0]);
+					// // RCLCPP_INFO(this->get_logger(), "Transform->translation_y = %f", transform.getOrigin()[1]);
+					cameraToReference.getOrigin()[0] = camera_pose_info_ekf.kalman_output[0];
+					cameraToReference.getOrigin()[1] = camera_pose_info_ekf.kalman_output[1];
+					// RCLCPP_INFO(this->get_logger(), "kalman>translation_y = %f", transform_inverse.getOrigin()[1]);
+
+					// RCLCPP_INFO(this->get_logger(), "Transform->translation_x = %f", transform.getOrigin()[0]);
 
 
-					/** define a dummy marker frame
-					 * using facing wall orientation as a reference
-					 * x=>in wall, y=> wall left , z=> wall up
-					 */
-
-					tf2::Transform tf_camera_to_dummy_marker;
-					tf2::Transform tf_real_to_dummy;
-					tf_real_to_dummy.setIdentity();
-					tf2::Quaternion q_marker_real_to_dummy;
-					q_marker_real_to_dummy.setRPY(-M_PI / 2.0, M_PI / 2.0, 0.0);
-					tf_real_to_dummy.setRotation(q_marker_real_to_dummy);
-					tf_camera_to_dummy_marker = transform * tf_real_to_dummy;
+					// RCLCPP_INFO(this->get_logger(), "Transform->rotation_z = %f", yaw * 180/ M_PI);
+					tf2::Quaternion rotate_yaw;
+					rotate_yaw.setRPY(roll, pitch, camera_pose_info_ekf.kalman_output[3]);
+					cameraToReference.setRotation(rotate_yaw);
+					// RCLCPP_INFO(this->get_logger(), "kalman>rotation_z = %f", camera_pose_info.kalman_output[3] * 180/ M_PI);
 
 					odom_pub_ = false;
 
 
-					tf2::Transform tf_baselink_to_camera, tf_depth_to_optical;
-					geometry_msgs::msg::TransformStamped stamped_tf_depth_to_optical;
-					if(!getTransform(std::string("camera3_depth_optical_frame"), std::string("camera3_depth_frame"),stamped_tf_depth_to_optical))
-					{
-						RCLCPP_INFO(get_logger(), "failed to get tf from camera3_depth_optical_frame to camera3_depth_frame");
-					}
-					tf2::Stamped<tf2::Transform> tf_depth_to_optical_stamped;
-					tf2::fromMsg(stamped_tf_depth_to_optical, tf_depth_to_optical_stamped);
-					tf_depth_to_optical = static_cast<tf2::Transform>(tf_depth_to_optical_stamped);
-					tf_baselink_to_camera = tf_baselink_to_marker_dummy * (tf_camera_to_dummy_marker.inverse()) * tf_depth_to_optical;
 
-					auto r_tmp1 = tf_baselink_to_camera.getRotation();
-					auto o_tmp1 = tf_baselink_to_camera.getOrigin();
-					// RCLCPP_INFO_STREAM(get_logger(), "x: " << o_tmp1.getX() << ", y: " << o_tmp1.getY() << ", z: " << o_tmp1.getZ());
-					
-					
-					double roll, pitch, yaw;
-					tf2::getEulerYPR(r_tmp1, yaw, pitch, roll);
-					// RCLCPP_INFO_STREAM(get_logger(), "roll: " << roll << ", pitch: " << pitch <<  ", yaw: " << yaw);
-					geometry_msgs::msg::TransformStamped stampedTransform2;
-					stampedTransform2.header.frame_id = std::string("aruco_marker_frame_dummy2");
-					stampedTransform2.header.stamp = curr_stamp;
-					stampedTransform2.child_frame_id = std::string("aruco_marker_frame_dummy2_real");
-					tf2::toMsg(tf_real_to_dummy.inverse(), stampedTransform2.transform);
-					tf_broadcaster_->sendTransform(stampedTransform2);
-
-					geometry_msgs::msg::TransformStamped stampedTransform3;
-					stampedTransform3.header.frame_id = std::string("aruco_marker_frame_dummy2_real");
-					stampedTransform3.header.stamp = curr_stamp;
-					stampedTransform3.child_frame_id = std::string("camera3_depth_optical_dummy");
-					tf2::toMsg(transform_init.inverse(), stampedTransform3.transform);
-					tf_broadcaster_->sendTransform(stampedTransform3);
-
-					geometry_msgs::msg::TransformStamped stampedTransform4;
-					stampedTransform4.header.frame_id = std::string("camera3_depth_optical_dummy");
-					stampedTransform4.header.stamp = curr_stamp;
-					stampedTransform4.child_frame_id = std::string("camera3_depth_dummy");
-					tf2::toMsg(tf_depth_to_optical, stampedTransform4.transform);
-					tf_broadcaster_->sendTransform(stampedTransform4);
-					
 					geometry_msgs::msg::TransformStamped stampedTransform;
 					stampedTransform.header.frame_id = reference_frame;
 					stampedTransform.header.stamp = curr_stamp;
-					stampedTransform.child_frame_id = marker_frame_dummy;
-					tf2::toMsg(tf_camera_to_dummy_marker, stampedTransform.transform);
+					stampedTransform.child_frame_id = marker_frame;
+					tf2::toMsg(transform, stampedTransform.transform);
 					tf_broadcaster_->sendTransform(stampedTransform);
-					// RCLCPP_INFO(this->get_logger(), "parent frame: %s, child frame: %s", reference_frame.c_str(), marker_frame.c_str());
-					
-					
-					tf2::Transform tf_dummy_marker_to_base_link;
-					geometry_msgs::msg::TransformStamped stamped_tf_base_link_to_optical;
-					if(!getTransform(std::string("base_link"), std::string("camera3_depth_optical_frame"),stamped_tf_base_link_to_optical))
-					{
-						RCLCPP_ERROR(get_logger(), "failed to get tf from base_link to camera3_depth_optical_frame");
-					}
-					tf2::Stamped<tf2::Transform> tf_base_link_optical_stamped;
-					tf2::fromMsg(stamped_tf_base_link_to_optical, tf_base_link_optical_stamped);
-					tf_dummy_marker_to_base_link = tf_camera_to_dummy_marker.inverse() * static_cast<tf2::Transform>(tf_base_link_optical_stamped.inverse());
-					tf2::Transform tf_base_link_dummy; // rotate M_PI at z axis.
-					tf_base_link_dummy.setIdentity();
-					tf_base_link_dummy.setOrigin(tf2::Vector3(0,0,0));
-					tf2::Quaternion q_base_link_dummy;
-					q_base_link_dummy.setRPY(0,0, M_PI);
-					tf_base_link_dummy.setRotation(q_base_link_dummy);
-					tf_dummy_marker_to_base_link *=  tf_base_link_dummy;
-
 					geometry_msgs::msg::PoseStamped poseMsg;
 					poseMsg.header = stampedTransform.header;
-					tf2::toMsg(tf_dummy_marker_to_base_link, poseMsg.pose);
-					poseMsg.header.frame_id = marker_frame_dummy;
+					tf2::toMsg(cameraToReference, poseMsg.pose);
+					poseMsg.header.frame_id = reference_frame;
 					poseMsg.header.stamp = curr_stamp;
 					pose_pub->publish(poseMsg);
-					transform_pub->publish(stampedTransform);
 
-					geometry_msgs::msg::PoseStamped poseMsg_cdo2m;
-					tf2::toMsg(transform_init.inverse(), poseMsg_cdo2m.pose);
-					poseMsg_cdo2m.header.frame_id = marker_frame;
-					poseMsg_cdo2m.header.stamp = curr_stamp;
-					pose_cdo2m_pub->publish(poseMsg_cdo2m);
+					transform_pub->publish(stampedTransform);
 
 					geometry_msgs::msg::Vector3Stamped positionMsg;
 					positionMsg.header = stampedTransform.header;
@@ -693,6 +696,26 @@ void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 					visMarker.lifetime = builtin_interfaces::msg::Duration();
 					visMarker.lifetime.sec = 3;
 					marker_pub->publish(visMarker);
+
+
+					// try
+					// {
+					// 	latest_transform = buffer->lookupTransform("base_link", "aruco_marker_frame", tf2::TimePoint(), 500ms);
+					// 	tf2::Stamped<tf2::Transform> aruco_to_baselink;
+					// 	tf2::fromMsg(latest_transform, aruco_to_baselink);
+					// 	geometry_msgs::msg::PoseStamped poseMsg;
+					// 	poseMsg.header.frame_id = reference_frame;
+					// 	poseMsg.header.stamp = curr_stamp;
+					// 	tf2::toMsg(aruco_to_baselink, poseMsg.pose);
+					// 	base_link_pose_pub->publish(poseMsg);
+
+
+					// }
+					// catch(const tf2::LookupException& e)
+					// {
+					// 	std::cerr << e.what() << '\n';
+					// }
+					
 
 					int j = 0;
 					int f =0;
@@ -811,9 +834,6 @@ void cam_info_callback(const sensor_msgs::msg::CameraInfo & msg)
 //      RCLCPP_WARN("normalizeImageIllumination is unimplemented!");
 //    }
 //  }
-
-	double r_uncertain_x, r_uncertain_y, r_uncertain_theta;
-	double q_uncertain_x, q_uncertain_y, q_uncertain_theta;
 };
 
 int main(int argc, char ** argv)

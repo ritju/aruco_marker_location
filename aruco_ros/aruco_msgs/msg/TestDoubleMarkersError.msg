@@ -1,0 +1,6 @@
+float64 t_x_error
+float64 t_y_error
+float64 t_z_error
+float64 roll_error
+float64 pitch_error
+float64 yaw_error
