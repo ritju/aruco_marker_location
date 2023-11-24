@@ -3,6 +3,9 @@ from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch.utilities import perform_substitutions
 from launch_ros.actions import Node
+from ament_index_python import get_package_share_directory
+import os
+import yaml
 
 
 def launch_setup(context, *args, **kwargs):
@@ -21,10 +24,16 @@ def launch_setup(context, *args, **kwargs):
         'R_uncertain': LaunchConfiguration('R_uncertain'),
     }
 
+    aruco_ros_pkg_path = get_package_share_directory('aruco_ros')
+    params_file_path = os.path.join(aruco_ros_pkg_path, 'params', 'config.yaml')
+    # print(params_file_path)
+    # with open(params_file_path, 'r') as file:
+    #     config_params = yaml.safe_load(file)
+
     aruco_single = Node(
         package='aruco_ros',
         executable='single',
-        parameters=[aruco_single_params],
+        parameters=[aruco_single_params, params_file_path],
         # remappings=[('/camera_info', '/stereo/' + eye + '/camera_info'),
         #             ('/image', '/stereo/' + eye + '/image_rect_color')],
         remappings=[('/camera_info', '/camera3/' + 'color' + '/camera_info'),

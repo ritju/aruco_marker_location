@@ -59,7 +59,12 @@
 #include "sensor_msgs/point_cloud_conversion.hpp"
 #include "tf2/utils.h"
 #include "aruco_msgs/msg/kalman_filter_test_msg.hpp"
-
+#include <map>
+#include "aruco_msgs/msg/marker_and_mac.hpp"
+#include "aruco_msgs/msg/marker_and_mac_vector.hpp"
+#include "std_msgs/msg/string.hpp"
+#include "capella_ros_service_interfaces/msg/charge_state.hpp"
+#include "aruco_msgs/msg/pose_with_id.hpp"
 
 
 
@@ -76,14 +81,19 @@ std::vector<aruco::Marker> markers;
 rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr cam_info_sub;
 rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub;
 rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr depth_cloud_sub;
+rclcpp::Subscription<std_msgs::msg::String>::SharedPtr charger_id_sub;
+rclcpp::Subscription<capella_ros_service_interfaces::msg::ChargeState>::SharedPtr charger_state_sub;
+
 std::vector<sensor_msgs::msg::PointCloud2> point_cloud_queue_;
 bool cam_info_received;
 image_transport::Publisher image_pub;
 image_transport::Publisher debug_pub;
 rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub;
+rclcpp::Publisher<aruco_msgs::msg::PoseWithId>::SharedPtr pose_with_id_pub;
 rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_cdo2m_pub; // cdo => camera_depth_optical m => marker
 rclcpp::Publisher<geometry_msgs::msg::TransformStamped>::SharedPtr transform_pub;
 rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr position_pub;
+rclcpp::Publisher<aruco_msgs::msg::MarkerAndMacVector>::SharedPtr id_and_mac_pub;
 
 rclcpp::Publisher<aruco_msgs::msg::KalmanFilterTestMsg>::SharedPtr kalman_before_pub;
 rclcpp::Publisher<aruco_msgs::msg::KalmanFilterTestMsg>::SharedPtr kalman_after_pub;
@@ -97,6 +107,10 @@ std::string marker_frame;
 std::string camera_frame;
 std::string reference_frame;
 std::string marker_frame_dummy{"aruco_marker_frame_dummy"};
+
+std::vector<std::map<int, std::string>> markerId_bluetoothMac;
+std::vector<std::string> marker_id_and_bluetooth_mac_vector;
+rclcpp::Time charger_id_time_start;
 
 double marker_size;
 int marker_id;
@@ -128,6 +142,16 @@ struct kalman_info
 	// double u;
 };
 kalman_info camera_pose_info;
+
+
+aruco_msgs::msg::MarkerAndMacVector msgs;
+aruco_msgs::msg::MarkerAndMac msg;
+rclcpp::TimerBase::SharedPtr id_mac_timer_;
+rclcpp::TimerBase::SharedPtr id_selected_timer_;
+std::string charger_id_;
+bool id_selected = false;
+float id_selected_lifecycle_;
+
 // void Init_kalman_info(kalman_info* info, double t, Eigen::Vector3d measurement)
 // {
 // 	info->A << 1,0,0, 0,1,0, 0,0,1;
@@ -176,8 +200,48 @@ info->P0.setIdentity();
 
 }
 
+void id_mac_callback()
+{
+	id_and_mac_pub->publish(msgs);
+}
+
+void id_selected_callback()
+{
+	if(id_selected)
+	{
+		rclcpp::Time now = this->get_clock()->now();
+		if ((now - charger_id_time_start).seconds() > id_selected_lifecycle_)
+		{
+			id_selected = false;
+		}
+	}
+}
+
+void charger_id_callback(std_msgs::msg::String msg)
+{
+	RCLCPP_INFO(this->get_logger(), "charger_id_callback");
+	RCLCPP_INFO(this->get_logger(), "msgs.marker_and_mac_vector.size(): %d", msgs.marker_and_mac_vector.size());
+	charger_id_ = msg.data;
+	for (int i = 0; i < msgs.marker_and_mac_vector.size(); i++)
+	{
+		
+		RCLCPP_INFO(this->get_logger(), "msg.data: %s", msg.data.c_str());
+		RCLCPP_INFO(this->get_logger(), "msgs.marker_and_mac_vector[i].bluetooth_mac: %s", msgs.marker_and_mac_vector[i].bluetooth_mac.c_str());
+		if(msg.data.compare(this->msgs.marker_and_mac_vector[i].bluetooth_mac) == 0)
+		{
+			
+			RCLCPP_INFO(this->get_logger(), "match");
+			id_selected = true;
+			marker_id = msgs.marker_and_mac_vector[i].marker_id;
+			charger_id_time_start = this->get_clock()->now();
+			break;
+		}
+	}
+}
+
 void marker_visible_callback()
 {
+	// RCLCPP_INFO(this->get_logger(), "marker_id: %d", marker_id);
 	if (markers.size() == 0)
 	{
 		capella_ros_service_interfaces::msg::ChargeMarkerVisible marker_detect_status;
@@ -188,11 +252,49 @@ void marker_visible_callback()
 	{
 		for (int i = 0; i < markers.size(); i++)
 		{
-			if (markers[i].id == marker_id)
+			if (id_selected)
 			{
-				capella_ros_service_interfaces::msg::ChargeMarkerVisible marker_detect_status;
-				marker_detect_status.marker_visible = true;
-				detect_status->publish(marker_detect_status);
+				// RCLCPP_INFO(this->get_logger(), "id_selected");
+				// RCLCPP_INFO(this->get_logger(), "marker_id: %d", marker_id);
+				// RCLCPP_INFO(this->get_logger(), "markers[i].id: %d", markers[i].id);
+				if (markers[i].id == marker_id)
+				{
+					capella_ros_service_interfaces::msg::ChargeMarkerVisible marker_detect_status;
+					marker_detect_status.marker_visible = true;
+					detect_status->publish(marker_detect_status);
+					break;
+				}
+				else
+				{
+					if (i == (markers.size() - 1))
+					{
+						capella_ros_service_interfaces::msg::ChargeMarkerVisible marker_detect_status;
+						marker_detect_status.marker_visible = false;
+						detect_status->publish(marker_detect_status);
+					}
+				}			
+			}
+			else
+			{				
+				// RCLCPP_INFO(this->get_logger(), "id not selected");
+				// RCLCPP_INFO(this->get_logger(), "marker_id: %d", marker_id);
+				// RCLCPP_INFO(this->get_logger(), "id in ranges: %d", in_idRanges(markers[i].id));
+				if (in_idRanges(markers[i].id))
+				{
+					capella_ros_service_interfaces::msg::ChargeMarkerVisible marker_detect_status;
+					marker_detect_status.marker_visible = true;
+					detect_status->publish(marker_detect_status);
+					break;
+				}
+				else
+				{
+					if (i == (markers.size() - 1))
+					{
+						capella_ros_service_interfaces::msg::ChargeMarkerVisible marker_detect_status;
+						marker_detect_status.marker_visible = false;
+						detect_status->publish(marker_detect_status);
+					}
+				}	
 			}
 		}
 	}
@@ -296,7 +398,8 @@ bool setup()
 	this->declare_parameter<double>("q_uncertain_x", 0.1);
 	this->declare_parameter<double>("q_uncertain_y", 0.1);
 	this->declare_parameter<double>("q_uncertain_theta", 0.1);
-
+	this->declare_parameter<std::vector<std::string>>("marker_id_and_bluetooth_mac", std::vector<std::string>());
+	this->declare_parameter<float>("id_selected_lifecycle", 120.0);
 
 	this->get_parameter_or<double>("P_uncertain", p_uncertain, 1);
 	this->get_parameter_or<double>("R_uncertain", r_uncertain, 1);
@@ -323,6 +426,26 @@ bool setup()
 		mDetector.setDetectionMode(aruco::DM_NORMAL, min_marker_size);
 	}
 
+	this->get_parameter_or<std::vector<std::string>>("marker_id_and_bluetooth_mac", marker_id_and_bluetooth_mac_vector, std::vector<std::string>());
+	this->get_parameter_or<float>("id_selected_lifecycle", id_selected_lifecycle_, 120.0);
+
+	int id_mac_length = marker_id_and_bluetooth_mac_vector.size();
+	for (int ids_index = 0; ids_index < id_mac_length; ids_index++)
+	{
+		std::string id_and_mac = marker_id_and_bluetooth_mac_vector[ids_index];
+		int id_and_mac_length = id_and_mac.length();
+		int pos = id_and_mac.find('/');
+		int marker_id_;
+		std::string bluetooth_mac;
+		marker_id_ = atoi(id_and_mac.substr(0, pos).c_str());
+		bluetooth_mac = id_and_mac.substr(pos + 1, id_and_mac_length - pos -1);
+		RCLCPP_INFO(this->get_logger(), "marker_id_: %d", marker_id_);
+		RCLCPP_INFO(this->get_logger(), "bluetooth_mac: %s", bluetooth_mac.c_str());
+		msg.marker_id = marker_id_;
+		msg.bluetooth_mac = bluetooth_mac;
+		msgs.marker_and_mac_vector.push_back(msg);
+	}
+
 	RCLCPP_INFO_STREAM(
 		this->get_logger(), "Marker size min: " << min_marker_size << " of image area");
 	RCLCPP_INFO_STREAM(this->get_logger(), "Detection mode: " << detection_mode);
@@ -334,10 +457,12 @@ bool setup()
 
 	odom_sub = this->create_subscription<nav_msgs::msg::Odometry>("odom", 1, std::bind(&ArucoSimple::odom_callback, this, std::placeholders::_1));
 	depth_cloud_sub = this->create_subscription<sensor_msgs::msg::PointCloud2>("camera/depth/points", rclcpp::SensorDataQoS(), std::bind(&ArucoSimple::depth_cloud_callback, this, std::placeholders::_1));
+	charger_id_sub =  this->create_subscription<std_msgs::msg::String>("/charger/id",rclcpp::QoS(rclcpp::KeepLast(1)).reliable().transient_local().reliable(),std::bind(&ArucoSimple::charger_id_callback, this, std::placeholders::_1));
 
 	image_pub = it_->advertise(this->get_name() + std::string("/result"), 1);
 	debug_pub = it_->advertise(this->get_name() + std::string("/debug"), 1);
 	pose_pub = subNode->create_publisher<geometry_msgs::msg::PoseStamped>("pose", 100);
+	pose_with_id_pub = subNode->create_publisher<aruco_msgs::msg::PoseWithId>("pose_with_id", 100);
 	pose_cdo2m_pub = subNode->create_publisher<geometry_msgs::msg::PoseStamped>("pose_cdo2m", 100);
 	transform_pub =
 		subNode->create_publisher<geometry_msgs::msg::TransformStamped>("transform", 100);
@@ -348,7 +473,7 @@ bool setup()
 	kalman_before_pub = subNode->create_publisher<aruco_msgs::msg::KalmanFilterTestMsg>("kalman_before", 30);
 	kalman_after_pub = subNode->create_publisher<aruco_msgs::msg::KalmanFilterTestMsg>("kalman_after", 30);
 
-
+	id_and_mac_pub = subNode->create_publisher<aruco_msgs::msg::MarkerAndMacVector>("id_mac", 30);
 
 	this->get_parameter_or<double>("marker_size", marker_size, 0.05);
 	this->get_parameter_or<int>("marker_id", marker_id, 300);
@@ -359,6 +484,8 @@ bool setup()
 
 	detect_status = this->create_publisher<capella_ros_service_interfaces::msg::ChargeMarkerVisible>("marker_visible", 10);
 	marker_timer = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&ArucoSimple::marker_visible_callback, this));
+	id_mac_timer_ = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&ArucoSimple::id_mac_callback, this));
+	id_selected_timer_ = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&ArucoSimple::id_selected_callback, this));
 
 	rcpputils::assert_true(
 		camera_frame != "" && marker_frame != "",
@@ -408,6 +535,20 @@ bool getTransform(
 	return true;
 }
 
+bool in_idRanges(int id)
+{
+	bool ret = false;
+	for(int i = 0; i < msgs.marker_and_mac_vector.size(); i++)
+	{
+		if (id == msgs.marker_and_mac_vector[i].marker_id)
+		{
+			ret = true;
+			break;
+		}
+	}
+	return ret;
+}
+
 void kalman_filter(kalman_info* kalman_info, Eigen::Vector3d last_measurement)
 {
 	//预测下一时刻的值
@@ -452,7 +593,7 @@ void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 			// for each marker, draw info and its boundaries in the image
 			for (std::size_t i = 0; i < markers.size(); ++i) {
 				// only publishing the selected marker
-				if (markers[i].id == marker_id) {
+				if (in_idRanges(markers[i].id)) {
 					tf2::Transform transform = aruco_ros::arucoMarker2Tf2(markers[i]);
 
 					// pub msg before kalman filter
@@ -657,6 +798,12 @@ void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 					poseMsg.header.stamp = curr_stamp;
 					pose_pub->publish(poseMsg);
 					transform_pub->publish(stampedTransform);
+
+					// pose_with_id
+					aruco_msgs::msg::PoseWithId pose_with_id_msg;
+					pose_with_id_msg.pose = poseMsg;
+					pose_with_id_msg.marker_id = markers[i].id;
+					pose_with_id_pub->publish(pose_with_id_msg);
 
 					geometry_msgs::msg::PoseStamped poseMsg_cdo2m;
 					tf2::toMsg(transform_init.inverse(), poseMsg_cdo2m.pose);

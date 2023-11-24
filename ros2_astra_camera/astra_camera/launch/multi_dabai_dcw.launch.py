@@ -33,9 +33,9 @@ def duplicate_params(general_params, posix, serial_number):
 # serial_number3 = "CH2B53100KR" #back
 
 # MK5
-serial_number1 = "CH2B531000D" #front-up CH2R73100ES
-serial_number2 = "CH2B531001V" #front-down
-serial_number3 = "CH2B531001S" #back
+serial_number1 = "CH282310048" #front-up CH2R73100ES
+serial_number2 = "CH2R73100FJ" #front-down
+serial_number3 = "CH2R73100R0" #back
 
 params1 = duplicate_params(default_params, "1", serial_number1)
 params2 = duplicate_params(default_params, "2", serial_number2)

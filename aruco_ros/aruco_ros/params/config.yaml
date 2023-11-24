@@ -1,0 +1,6 @@
+aruco_single:
+  ros__parameters:
+    marker_id_and_bluetooth_mac: 
+      - '582/94:C9:60:43:C0:6D'
+      - '583/94:C9:60:43:BE:67'
+    id_selected_lifecycle: 120.0
