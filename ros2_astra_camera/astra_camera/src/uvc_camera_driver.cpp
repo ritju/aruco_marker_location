@@ -289,9 +289,13 @@ sensor_msgs::msg::CameraInfo UVCCameraDriver::getCameraInfo() {
   width = camera_info_->width;
   height = camera_info_->height;
 
-  // init size 640 * 360
+  int width,height;
+  width = camera_info_->width;
+  height = camera_info_->height;
+
+  // init size of depth_image 640 * 360
+
   // for 1280 * 720
-  
   if (width == 1280 && height == 720)
   {
     camera_info_->k[0] *= 2;
@@ -306,7 +310,8 @@ sensor_msgs::msg::CameraInfo UVCCameraDriver::getCameraInfo() {
     camera_info_->p[3] = 0;
     camera_info_->p[7] = 0;
   }
- // for 1280 * 960
+
+  // for 1280 * 960
   else if(width == 1280 && height == 960)
   {
     camera_info_->k[0] *= 2.66;

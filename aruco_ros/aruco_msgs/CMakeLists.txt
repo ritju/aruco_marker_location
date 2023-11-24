@@ -16,6 +16,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/MarkerArray.msg"
   "msg/TestDoubleMarkersError.msg"
   "msg/KalmanFilterTestMsg.msg"
+  "msg/MarkerAndMac.msg"
+  "msg/MarkerAndMacVector.msg"
+  "msg/PoseWithId.msg"
   DEPENDENCIES std_msgs geometry_msgs
 )
 

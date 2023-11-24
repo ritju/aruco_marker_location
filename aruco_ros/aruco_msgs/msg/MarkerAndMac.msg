@@ -1,0 +1,2 @@
+int64 marker_id
+string bluetooth_mac
