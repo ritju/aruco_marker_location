@@ -12,10 +12,12 @@ import rclpy
 def launch_setup(context, *args, **kwargs):
 
     eye = perform_substitutions(context, [LaunchConfiguration('eye')])
-
+    marker_id_and_bluetooth_mac = ''
     try:
         if 'marker_id_and_bluetooth_mac' in os.environ:
             marker_id_and_bluetooth_mac = os.environ.get('marker_id_and_bluetooth_mac')
+            if marker_id_and_bluetooth_mac == '':
+                raise
     except:
         rclpy.get_logger().error("Please input aruco marker_id and bluetooth_mac !")
 
