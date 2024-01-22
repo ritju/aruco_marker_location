@@ -6,11 +6,19 @@ from launch_ros.actions import Node
 from ament_index_python import get_package_share_directory
 import os
 import yaml
+import rclpy
 
 
 def launch_setup(context, *args, **kwargs):
 
     eye = perform_substitutions(context, [LaunchConfiguration('eye')])
+
+    try:
+        if 'marker_id_and_bluetooth_mac' in os.environ:
+            marker_id_and_bluetooth_mac = os.environ.get('marker_id_and_bluetooth_mac')
+    except:
+        rclpy.get_logger().error("Please input aruco marker_id and bluetooth_mac !")
+
 
     aruco_single_params = {
         'image_is_rectified': True,
@@ -22,10 +30,11 @@ def launch_setup(context, *args, **kwargs):
         'marker_frame': LaunchConfiguration('marker_frame'),
         'P_uncertain': LaunchConfiguration('P_uncertain'),
         'R_uncertain': LaunchConfiguration('R_uncertain'),
+        'marker_id_and_bluetooth_mac': marker_id_and_bluetooth_mac,
     }
 
-    aruco_ros_pkg_path = get_package_share_directory('aruco_ros')
-    params_file_path = os.path.join(aruco_ros_pkg_path, 'params', 'config.yaml')
+    # aruco_ros_pkg_path = get_package_share_directory('aruco_ros')
+    # params_file_path = os.path.join(aruco_ros_pkg_path, 'params', 'config.yaml')
     # print(params_file_path)
     # with open(params_file_path, 'r') as file:
     #     config_params = yaml.safe_load(file)
@@ -33,7 +42,7 @@ def launch_setup(context, *args, **kwargs):
     aruco_single = Node(
         package='aruco_ros',
         executable='single',
-        parameters=[aruco_single_params, params_file_path],
+        parameters=[aruco_single_params],
         # remappings=[('/camera_info', '/stereo/' + eye + '/camera_info'),
         #             ('/image', '/stereo/' + eye + '/image_rect_color')],
         remappings=[('/camera_info', '/camera3/' + 'color' + '/camera_info'),
