@@ -19,7 +19,7 @@ def launch_setup(context, *args, **kwargs):
             if marker_id_and_bluetooth_mac == '':
                 raise
     except:
-        rclpy.get_logger().error("Please input aruco marker_id and bluetooth_mac !")
+        print("Please input aruco marker_id and bluetooth_mac !")
 
 
     aruco_single_params = {
