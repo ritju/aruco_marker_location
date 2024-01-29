@@ -59,6 +59,7 @@ params3 = duplicate_params(default_params, "3", serial_number3)
 params3['color_width'] = 1280
 params3['color_height'] = 960
 params3['color_fps'] = 15
+params3['uvc_camera.format'] = "mjpeg"
 
 def func(context, *args, **kwargs):
     camera_name = kwargs['camera_name']

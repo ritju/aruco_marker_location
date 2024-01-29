@@ -324,7 +324,7 @@ sensor_msgs::msg::CameraInfo UVCCameraDriver::getCameraInfo() {
   }
 
   // for default 640 * 480
-  else
+  else if(width == 640 && height == 480)
   {
     camera_info_->k[0] *= 1.33;
     camera_info_->k[2] = (cx_raw - 80)*1.33;
@@ -338,7 +338,20 @@ sensor_msgs::msg::CameraInfo UVCCameraDriver::getCameraInfo() {
     camera_info_->p[3] = 0;
     camera_info_->p[7] = 0;
   }
-  
+    else if(width == 320 && height == 240)
+  {
+    camera_info_->k[0] *= 0.75;
+    camera_info_->k[2] = (cx_raw - 107)*0.75;
+    camera_info_->k[4] *= 0.75;
+    camera_info_->k[5] *= 0.75;
+    camera_info_->p[0] *= 0.75;
+    camera_info_->p[2] = (cx_raw - 107)*0.75;
+    camera_info_->p[5] *= 0.75;
+    camera_info_->p[6] *= 0.75;
+    camera_info_->p[11] = 0;
+    camera_info_->p[3] = 0;
+    camera_info_->p[7] = 0;
+  }
   return result->info;
 }
 
