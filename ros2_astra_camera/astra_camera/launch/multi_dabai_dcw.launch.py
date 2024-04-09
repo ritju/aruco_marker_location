@@ -42,9 +42,9 @@ try:
         camera_2 = os.environ.get('CAMERA2_NUMBER')
         camera_3 = os.environ.get('CAMERA3_NUMBER')
     else:
-        camera_1 = 'CH2R73100JN'
-        camera_2 = 'CH282310048'
-        camera_3 = 'CH2B53100KR'
+        camera_1 = 'CH2F931004B'
+        camera_2 = 'CH2F931000T'
+        camera_3 = 'CH2Y83100K7'
         print("Please input depth camera serial number!")
 except Exception:
     print("No camera serial number found!")

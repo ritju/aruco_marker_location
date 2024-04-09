@@ -340,14 +340,14 @@ sensor_msgs::msg::CameraInfo UVCCameraDriver::getCameraInfo() {
   }
     else if(width == 320 && height == 240)
   {
-    camera_info_->k[0] *= 0.75;
-    camera_info_->k[2] = (cx_raw - 107)*0.75;
-    camera_info_->k[4] *= 0.75;
-    camera_info_->k[5] *= 0.75;
-    camera_info_->p[0] *= 0.75;
-    camera_info_->p[2] = (cx_raw - 107)*0.75;
-    camera_info_->p[5] *= 0.75;
-    camera_info_->p[6] *= 0.75;
+    camera_info_->k[0] *= 0.667;
+    camera_info_->k[2] = (cx_raw - 80)*0.667;
+    camera_info_->k[4] *= 0.667;
+    camera_info_->k[5] *= 0.667;
+    camera_info_->p[0] *= 0.667;
+    camera_info_->p[2] = (cx_raw - 80)*0.667;
+    camera_info_->p[5] *= 0.667;
+    camera_info_->p[6] *= 0.667;
     camera_info_->p[11] = 0;
     camera_info_->p[3] = 0;
     camera_info_->p[7] = 0;
@@ -441,7 +441,7 @@ void UVCCameraDriver::frameCallback(uvc_frame_t* frame) {
     image.header.stamp = node_->now();
   }
   if (camera_info_.has_value()) {
-    camera_info_->header.stamp = node_->now();
+    camera_info_->header.stamp = image.header.stamp;
     camera_info_->height = image.height;
     camera_info_->width = image.width;
     // RCLCPP_INFO(logger_, "camera_info->p[11]: %f", camera_info_->p[11]);

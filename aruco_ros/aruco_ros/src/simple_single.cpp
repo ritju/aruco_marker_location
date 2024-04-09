@@ -567,6 +567,21 @@ void kalman_filter(kalman_info* kalman_info, Eigen::Vector3d last_measurement)
 
 void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 {
+	// // pub tf for tag36h11:0 to dummy(tmp)
+	// tf2::Transform tf_tag36h11_real_to_dummy;
+	// tf_tag36h11_real_to_dummy.setIdentity();
+	// tf2::Quaternion q_tag36h11_real_to_dummy;
+	// q_tag36h11_real_to_dummy.setRPY(-M_PI / 2.0, M_PI / 2.0, 0.0);
+	// tf_tag36h11_real_to_dummy.setRotation(q_tag36h11_real_to_dummy);
+
+	// geometry_msgs::msg::TransformStamped stampedTransform_tag36h11;
+	// stampedTransform_tag36h11.header.frame_id = std::string("tag36h11:0");
+	// stampedTransform_tag36h11.header.stamp = msg->header.stamp;
+	// stampedTransform_tag36h11.child_frame_id = std::string("tag36h11:0_dummy");
+	// tf2::toMsg(tf_tag36h11_real_to_dummy, stampedTransform_tag36h11.transform);
+	// tf_broadcaster_->sendTransform(stampedTransform_tag36h11);
+
+	
 	if ((image_pub.getNumSubscribers() == 0) &&
 	    (debug_pub.getNumSubscribers() == 0) &&
 	    (pose_pub->get_subscription_count() == 0) &&
@@ -772,6 +787,7 @@ void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 					tf2::toMsg(tf_camera_to_dummy_marker, stampedTransform.transform);
 					tf_broadcaster_->sendTransform(stampedTransform);
 					// RCLCPP_INFO(this->get_logger(), "parent frame: %s, child frame: %s", reference_frame.c_str(), marker_frame.c_str());
+					
 					
 					
 					tf2::Transform tf_dummy_marker_to_base_link;
