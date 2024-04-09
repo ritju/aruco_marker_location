@@ -61,6 +61,9 @@ params3['color_height'] = 960
 params3['color_fps'] = 15
 params3['uvc_camera.format'] = "mjpeg"
 
+params1['color_fps'] = 15
+params1['depth_fps'] = 15
+
 def func(context, *args, **kwargs):
     camera_name = kwargs['camera_name']
     params = kwargs['parameters']
