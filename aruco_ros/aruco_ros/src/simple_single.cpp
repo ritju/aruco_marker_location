@@ -462,7 +462,7 @@ bool setup()
 	image_pub = it_->advertise(this->get_name() + std::string("/result"), 1);
 	debug_pub = it_->advertise(this->get_name() + std::string("/debug"), 1);
 	pose_pub = subNode->create_publisher<geometry_msgs::msg::PoseStamped>("pose", 100);
-	pose_with_id_pub = subNode->create_publisher<aruco_msgs::msg::PoseWithId>("pose_with_id", 100);
+	pose_with_id_pub = subNode->create_publisher<aruco_msgs::msg::PoseWithId>("/pose_with_id", 100);
 	pose_cdo2m_pub = subNode->create_publisher<geometry_msgs::msg::PoseStamped>("pose_cdo2m", 100);
 	transform_pub =
 		subNode->create_publisher<geometry_msgs::msg::TransformStamped>("transform", 100);
