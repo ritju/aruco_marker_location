@@ -473,7 +473,7 @@ bool setup()
 	kalman_before_pub = subNode->create_publisher<aruco_msgs::msg::KalmanFilterTestMsg>("kalman_before", 30);
 	kalman_after_pub = subNode->create_publisher<aruco_msgs::msg::KalmanFilterTestMsg>("kalman_after", 30);
 
-	id_and_mac_pub = subNode->create_publisher<aruco_msgs::msg::MarkerAndMacVector>("id_mac", 30);
+	id_and_mac_pub = subNode->create_publisher<aruco_msgs::msg::MarkerAndMacVector>("/id_mac", 30);
 
 	this->get_parameter_or<double>("marker_size", marker_size, 0.05);
 	this->get_parameter_or<int>("marker_id", marker_id, 300);
