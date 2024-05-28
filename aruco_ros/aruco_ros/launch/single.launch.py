@@ -9,6 +9,11 @@ import yaml
 import rclpy
 
 
+if 'ARUCO_MARKER_SIZE' in os.environ:
+    aruco_marker_size = os.environ.get('ARUCO_MARKER_SIZE')
+else:
+     aruco_marker_size = '0.2'
+
 def launch_setup(context, *args, **kwargs):
 
     eye = perform_substitutions(context, [LaunchConfiguration('eye')])
@@ -62,7 +67,7 @@ def generate_launch_description():
     )
 
     marker_size_arg = DeclareLaunchArgument(
-        'marker_size', default_value='0.20',
+        'marker_size', default_value=aruco_marker_size,
         description='Marker size in m. '
     )
 
