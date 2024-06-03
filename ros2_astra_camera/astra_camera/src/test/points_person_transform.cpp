@@ -130,7 +130,7 @@ void PointsPersonTF::init_params()
 
 void PointsPersonTF::cb_coord(const astra_camera_msgs::msg::CoordPersonList::SharedPtr msg)
 {
-	frame_index_coord++;
+	// frame_index_coord++;
 	std::lock_guard<std::mutex> lock(mtx_);
 	if (msg->persons.size() == 0)
 	{
@@ -175,7 +175,7 @@ void PointsPersonTF::cb_points(const sensor_msgs::msg::PointCloud2::SharedPtr ms
 		}
 	}
 	
-	frame_index_points++;
+	// frame_index_points++;
 	// RCLCPP_INFO_STREAM(logger_,
 	//                    "\n"
 	//                    <<"frame_index_coord:     " << frame_index_coord
