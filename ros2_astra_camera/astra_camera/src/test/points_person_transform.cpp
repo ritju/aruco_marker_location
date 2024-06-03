@@ -251,9 +251,9 @@ void PointsPersonTF::process(int x1, int y1, int x2, int y2, float theta, int r)
 
 	// fix bug for coord ranges
 	start_y = std::min(std::max(start_y, 0), height_ - 1);
-	end_y = std::min(std::max(start_y, 0), height_ - 1);
+	end_y = std::min(std::max(end_y, 0), height_ - 1);
 	x1 = std::min(std::max(x1, 0), width_ - 1);
-	x2 = std::min(std::max(x1, 0), width_ - 1);
+	x2 = std::min(std::max(x2, 0), width_ - 1);
 	
 	// RCLCPP_INFO(logger_, "start_y: %d, end_y: %d", start_y, end_y );
 	for (int j = start_y; j <= end_y; j++)
