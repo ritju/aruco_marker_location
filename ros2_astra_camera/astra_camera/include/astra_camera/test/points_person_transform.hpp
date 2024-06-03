@@ -9,6 +9,12 @@
 #include <mutex>
 #include <queue>
 
+#include "tf2_ros/transform_broadcaster.h"
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "tf2/utils.h"
+
 namespace astra_camera{
 
 struct valid_data_range
@@ -36,6 +42,9 @@ public:
         void cb_coord(const astra_camera_msgs::msg::CoordPersonList::SharedPtr msg);
         void cb_points(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
         bool filter(cv::Mat & mat);
+        bool getTransform(
+	const std::string & refFrame, const std::string & childFrame,
+	geometry_msgs::msg::TransformStamped & transform);
 private:
         rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_points_;
         rclcpp::Subscription<astra_camera_msgs::msg::CoordPersonList>::SharedPtr sub_persons_;
@@ -45,6 +54,7 @@ private:
         rclcpp::Logger logger_;
         std::string topic_coodinate_;
         std::string topic_points_;
+        std::string topic_frame_;
         std::string topic_pub_;
         float tf_left_;
         float tf_right_;
@@ -54,6 +64,7 @@ private:
         int queue_size_;
         float z_min_;
         float theta_x_;
+        bool theta_x_get_from_tf{false};
         int r_;
         int width_, height_;
         cv::Mat frame;
@@ -73,6 +84,9 @@ private:
         // just for test
         bool test_mode_{false};
         int test_x1_, test_y1_, test_x2_, test_y2_;
+
+        std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+        std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
 };
 } // end of namespace astra_camera
 

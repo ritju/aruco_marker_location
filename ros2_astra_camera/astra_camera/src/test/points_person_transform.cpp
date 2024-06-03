@@ -8,6 +8,8 @@ PointsPersonTF::PointsPersonTF(const rclcpp::NodeOptions & options)
 	: rclcpp::Node("points_person_tf", options), logger_(this->get_logger())
 {
 	RCLCPP_INFO(logger_, "PointsPersonTF constructor.");
+	tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+	tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 	init_params();
 	cb_group_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 	auto sub_options = rclcpp::SubscriptionOptions();
@@ -47,16 +49,44 @@ void PointsPersonTF::init_params()
 	declare_parameter<float>("valid_z_max", 4.0);
 	declare_parameter<bool>("filter_bool", false);
 	declare_parameter<float>("life_time", 1.0);
+	declare_parameter<std::string>("topic_frame", "camera1_color_frame");
 
 	topic_coodinate_ = get_parameter("topic_coodinate").get_value<std::string>();
 	topic_points_ = get_parameter("topic_points").get_value<std::string>();
+	topic_frame_ = get_parameter("topic_frame").get_value<std::string>();
 	topic_pub_ = get_parameter("topic_pub").get_value<std::string>();
 	tf_left_ = get_parameter("tf_left").get_value<float>();
 	tf_right_ = get_parameter("tf_right").get_value<float>();
 	tf_back_ = get_parameter("tf_back").get_value<float>();
 	queue_size_ = get_parameter("queue_size").get_value<int>();
 	z_min_ = get_parameter("z_min").get_value<float>();
-	theta_x_ = get_parameter("theta_x").get_value<float>();
+
+	geometry_msgs::msg::TransformStamped transform_stamped;
+	if (getTransform(std::string("base_link"), topic_frame_, transform_stamped))
+	{
+		tf2::Stamped<tf2::Transform> cameraToReference;
+		cameraToReference.setIdentity();
+		tf2::fromMsg(transform_stamped, cameraToReference);
+		auto tf_tmp = static_cast<tf2::Transform>(cameraToReference);
+		
+		tf2::Matrix3x3 m(tf_tmp.getRotation());
+    	double roll, pitch, yaw;
+    	m.getRPY(roll, pitch, yaw);
+		theta_x_ = pitch;
+
+		RCLCPP_INFO(get_logger(), "theta_x from tf: %f", theta_x_);
+		theta_x_ = -theta_x_;
+		RCLCPP_INFO(get_logger(), "-theta_x from tf: %f", theta_x_);
+		theta_x_get_from_tf = true;
+	} 
+	else
+	{
+		theta_x_ = get_parameter("theta_x").get_value<float>();
+		RCLCPP_INFO(get_logger(), "theta_x from param file: %f", theta_x_);
+		theta_x_ = false;
+	}
+	
+
 	r_ = get_parameter("r").get_value<int>();
 	data_range_.min_x = get_parameter("valid_x_min").get_value<float>();
 	data_range_.max_x = get_parameter("valid_x_max").get_value<float>();
@@ -80,6 +110,7 @@ void PointsPersonTF::init_params()
 	                                        << ", valid_z_max: " << data_range_.max_z
 	                                        << ", filter_bool: " << filter_bool_
 	                                        << ", life_time: " << life_time_
+											<< ", topic_frame: " << topic_frame_.c_str()
 	                   );
 
 
@@ -116,6 +147,34 @@ void PointsPersonTF::cb_coord(const astra_camera_msgs::msg::CoordPersonList::Sha
 
 void PointsPersonTF::cb_points(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
+	if(!theta_x_get_from_tf)
+	{
+		geometry_msgs::msg::TransformStamped transform_stamped;
+		if (getTransform(std::string("base_link"), topic_frame_, transform_stamped))
+		{
+			tf2::Stamped<tf2::Transform> cameraToReference;
+			cameraToReference.setIdentity();
+			tf2::fromMsg(transform_stamped, cameraToReference);
+			auto tf_tmp = static_cast<tf2::Transform>(cameraToReference);
+			
+			tf2::Matrix3x3 m(tf_tmp.getRotation());
+			double roll, pitch, yaw;
+			m.getRPY(roll, pitch, yaw);
+			theta_x_ = pitch;
+
+			RCLCPP_INFO(get_logger(), "theta_x from tf: %f", theta_x_);
+			theta_x_ = -theta_x_;
+			RCLCPP_INFO(get_logger(), "-theta_x from tf: %f", theta_x_);
+			theta_x_get_from_tf = true;
+		} 
+		else
+		{
+			theta_x_ = get_parameter("theta_x").get_value<float>();
+			RCLCPP_INFO(get_logger(), "theta_x from param file: %f", theta_x_);
+			theta_x_ = false;
+		}
+	}
+	
 	frame_index_points++;
 	// RCLCPP_INFO_STREAM(logger_,
 	//                    "\n"
@@ -201,7 +260,7 @@ void PointsPersonTF::cb_points(const sensor_msgs::msg::PointCloud2::SharedPtr ms
 		RCLCPP_DEBUG(logger_, "delta time: %f", delta_time);
 		if (delta_time < life_time_)
 		{
-			RCLCPP_INFO(logger_, "delta time: %f", delta_time);
+			// RCLCPP_INFO(logger_, "delta time: %f", delta_time);
 
 			astra_camera_msgs::msg::CoordPersonList person_list;
 			int size;
@@ -294,6 +353,7 @@ void PointsPersonTF::rotate_x(float &y, float &z, float theta)
 {
 	// cos(a+b) = cos(a)*cos(b) - sin(a)*sin(b)
 	// sin(a+b) = sin(a)*cos(b) + cos(a)*sin(b)
+	// theta: the angle from z axis move to y axis
 	float y_, z_;
 	y_ = y * cos(theta) - z * sin(theta);
 	z_ = z * cos(theta) + y * sin(theta);
@@ -333,6 +393,33 @@ bool PointsPersonTF::filter(cv::Mat &mat)
 		ret = false;
 	}
 	return ret;
+}
+
+bool PointsPersonTF::getTransform(
+	const std::string & refFrame, const std::string & childFrame,
+	geometry_msgs::msg::TransformStamped & transform)
+{
+	std::string errMsg;
+
+	if (!tf_buffer_->canTransform(
+		    refFrame, childFrame, tf2::TimePointZero,
+		    tf2::durationFromSec(0.5), &errMsg))
+	{
+		RCLCPP_ERROR_STREAM(this->get_logger(), "Unable to get pose from TF: " << errMsg);
+		return false;
+	} else {
+		try {
+			transform = tf_buffer_->lookupTransform(
+				refFrame, childFrame, tf2::TimePointZero, tf2::durationFromSec(
+					0.5));
+		} catch (const tf2::TransformException & e) {
+			RCLCPP_ERROR_STREAM(
+				this->get_logger(),
+				"Error in lookupTransform of " << childFrame << " in " << refFrame << " : " << e.what());
+			return false;
+		}
+	}
+	return true;
 }
 
 } // end of namespace astra_camera

@@ -17,6 +17,7 @@ points_person_tf:
   ros__parameters::
     topic_coodinate: "/coord_persons"
     topic_points: "/camera1/depth/points"
+    topic_frame: "camera1_color_frame"
     topic_pub: "points_cloud_person"
     tf_left: 0.3
     tf_right: 0.3
