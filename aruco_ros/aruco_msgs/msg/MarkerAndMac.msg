@@ -1,2 +1,3 @@
 int64 marker_id
+int64 marker_id_correction
 string bluetooth_mac
