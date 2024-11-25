@@ -58,11 +58,14 @@ params2 = duplicate_params(default_params, "2", serial_number2)
 params3 = duplicate_params(default_params, "3", serial_number3)
 params3['color_width'] = 1280
 params3['color_height'] = 960
-params3['color_fps'] = 15
+params3['color_fps'] = 10
 params3['uvc_camera.format'] = "mjpeg"
 
-params1['color_fps'] = 15
-params1['depth_fps'] = 15
+params1['color_fps'] = 5
+params1['depth_fps'] = 5
+
+params2['color_fps'] = 10
+params2['depth_fps'] = 5
 
 def func(context, *args, **kwargs):
     camera_name = kwargs['camera_name']
