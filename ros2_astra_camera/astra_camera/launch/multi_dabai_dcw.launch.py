@@ -27,44 +27,30 @@ def duplicate_params(general_params, posix, serial_number):
     local_params["serial_number"] = serial_number
     return local_params
 
-# MK4
-# serial_number1 = "CH2R73100JN" #front-up CH2R73100ES
-# serial_number2 = "CH282310048" #front-down
-# serial_number3 = "CH2B53100KR" #back
-
-# MK5
-# serial_number1 = "CH2B531000D" #front-up CH2R73100ES
-# serial_number2 = "CH2B531001V" #front-down
-# serial_number3 = "CH2B531001S" #back
 try:
-    if 'CAMERA1_NUMBER' and 'CAMERA2_NUMBER' and "CAMERA3_NUMBER" in os.environ:
+    if 'CAMERA1_NUMBER' and 'CAMERA2_NUMBER' and "CAMERA3_NUMBER" and "CAMERA4_NUMBER" in os.environ:
         camera_1 = os.environ.get('CAMERA1_NUMBER')
         camera_2 = os.environ.get('CAMERA2_NUMBER')
         camera_3 = os.environ.get('CAMERA3_NUMBER')
+        camera_4 = os.environ.get('CAMERA4_NUMBER')
     else:
         camera_1 = 'CH2F931004B'
         camera_2 = 'CH2F931000T'
         camera_3 = 'CH2Y83100K7'
+        camera_4 = 'CH2Y83100K7'
         print("Please input depth camera serial number!")
 except Exception:
     print("No camera serial number found!")
 
-serial_number1 = camera_1 #前上
-serial_number2 = camera_2 #前下
+serial_number1 = camera_1 #前
+serial_number2 = camera_2 #右
 serial_number3 = camera_3 #后
+serial_number4 = camera_4 #左
 
 params1 = duplicate_params(default_params, "1", serial_number1)
 params2 = duplicate_params(default_params, "2", serial_number2)
 params3 = duplicate_params(default_params, "3", serial_number3)
-params3['color_width'] = 1280
-params3['color_height'] = 960
-params3['color_fps'] = 10
-params3['uvc_camera.format'] = "mjpeg"
-
-params1['color_fps'] = 10
-params2['color_fps'] = 30
-params1['depth_fps'] = 20
-params2['depth_fps'] = 30
+params4 = duplicate_params(default_params, "4", serial_number4)
 
 def func(context, *args, **kwargs):
     camera_name = kwargs['camera_name']
@@ -98,19 +84,6 @@ def generate_container_node(camera_name, params):
         package='rclcpp_components',
         executable='component_container',
         composable_node_descriptions=[
-            # ComposableNode(package='astra_camera',
-            #                plugin='astra_camera::OBCameraNodeFactory',
-            #                name='camera',
-            #                parameters=[params],
-            #                namespace=camera_name),
-            # ComposableNode(package='astra_camera',
-            #                plugin='astra_camera::PointCloudXyzNode',
-            #                namespace=camera_name,
-            #                name='point_cloud_xyz'),
-            # ComposableNode(package='astra_camera',
-            #                plugin='astra_camera::PointCloudXyzrgbNode',
-            #                namespace=camera_name,
-            #                name='point_cloud_xyzrgb')
         ],
         output='screen',
         respawn=True)
@@ -134,37 +107,8 @@ def generate_launch_description():
     container1 = generate_container_node("camera1", params1)
     container2 = generate_container_node("camera2", params2)
     container3 = generate_container_node("camera3", params3)
+    container4 = generate_container_node("camera4", params4)
     
-    # dummy static transformation from camera1 to camera2
-    # dummy_tf_node = launch_ros.actions.Node(
-    #     package="tf2_ros",
-    #     executable="static_transform_publisher",
-    #     arguments=[
-    #         "0",
-    #         "1",
-    #         "1",
-    #         "0",
-    #         "0",
-    #         "0",
-    #         "camera1_link",
-    #         "camera2_link",
-    #     ],
-    # )
-
-    # dummy_tf_node1 = launch_ros.actions.Node(
-    #     package="tf2_ros",
-    #     executable="static_transform_publisher",
-    #     arguments=[
-    #         "0",
-    #         "0",
-    #         "0",
-    #         "0",
-    #         "0",
-    #         "0",
-    #         "camera1_link",
-    #         "camera3_link",
-    #     ],
-    # )
     container1_ = ComposableNodeContainer(
         name='astra_camera_container',
         namespace='',
@@ -203,10 +147,17 @@ def generate_launch_description():
 			target_action=container3,
 			on_start=[LogInfo(msg='Container start'),OpaqueFunction(function=func, kwargs={'camera_name': 'camera3', 'parameters': params3})]
 		))
+    event4 = RegisterEventHandler(
+        OnProcessStart(
+			target_action=container4,
+			on_start=[LogInfo(msg='Container start'),OpaqueFunction(function=func, kwargs={'camera_name': 'camera4', 'parameters': params4})]
+		))
 
     containers = [
-        #event1,container1,
+        event1,container1,
         event2,container2,
         event3,container3,
+        event4,container4,
+
     ]
     return LaunchDescription(containers)
