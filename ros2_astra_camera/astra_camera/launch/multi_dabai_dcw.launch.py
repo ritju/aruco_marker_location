@@ -59,12 +59,13 @@ params3 = duplicate_params(default_params, "3", serial_number3)
 params3['color_width'] = 1280
 params3['color_height'] = 960
 params3['color_fps'] = 10
+params3['depth_fps'] = 10
 params3['uvc_camera.format'] = "mjpeg"
 
 params1['color_fps'] = 10
-params2['color_fps'] = 30
-params1['depth_fps'] = 20
-params2['depth_fps'] = 30
+params2['color_fps'] = 15
+params1['depth_fps'] = 10
+params2['depth_fps'] = 15
 
 def func(context, *args, **kwargs):
     camera_name = kwargs['camera_name']
@@ -205,7 +206,7 @@ def generate_launch_description():
 		))
 
     containers = [
-        #event1,container1,
+        event1,container1,
         event2,container2,
         event3,container3,
     ]
