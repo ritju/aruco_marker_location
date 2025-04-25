@@ -161,11 +161,11 @@ void UVCCameraDriver::startStreaming() {
     return;
   }
   setVideoMode();
-  RCLCPP_INFO(logger_, "uvc start streaming");
+  RCLCPP_DEBUG(logger_, "uvc start streaming");
   uvc_error_t stream_err =
       uvc_start_streaming(device_handle_, &ctrl_, &UVCCameraDriver::frameCallbackWrapper, this, 0);
   
-  RCLCPP_INFO(logger_, "uvc start streaming end");
+  RCLCPP_DEBUG(logger_, "uvc start streaming end");
   if (stream_err != UVC_SUCCESS) {
     RCLCPP_ERROR_STREAM(logger_, "uvc start streaming error " << uvc_strerror(stream_err)
                                                               << " retry " << config_.retry_count
@@ -190,11 +190,11 @@ void UVCCameraDriver::startStreaming() {
     uvc_free_frame(frame_buffer_);
   }
 
-  RCLCPP_INFO(logger_, "uvc_allocate_frame");
+  RCLCPP_DEBUG(logger_, "uvc_allocate_frame");
   frame_buffer_ = uvc_allocate_frame(config_.width * config_.height * 3);
-  RCLCPP_INFO(logger_, "before check frame_buffer");
+  RCLCPP_DEBUG(logger_, "before check frame_buffer");
   CHECK_NOTNULL(frame_buffer_);
-  RCLCPP_INFO(logger_, "after check frame_buffer");
+  RCLCPP_DEBUG(logger_, "after check frame_buffer");
   is_streaming_started.store(true);
 }
 
@@ -444,7 +444,7 @@ void UVCCameraDriver::frameCallback(uvc_frame_t* frame) {
     camera_info_->header.stamp = image.header.stamp;
     camera_info_->height = image.height;
     camera_info_->width = image.width;
-    // RCLCPP_INFO(logger_, "camera_info->p[11]: %f", camera_info_->p[11]);
+    // RCLCPP_DEBUG(logger_, "camera_info->p[11]: %f", camera_info_->p[11]);
     
     camera_info_publisher_->publish(*camera_info_);
   }

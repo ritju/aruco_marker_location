@@ -44,49 +44,49 @@ OBCameraNode::OBCameraNode(rclcpp::Node* node, std::shared_ptr<openni::Device> d
       logger_(node->get_logger()),
       use_uvc_camera_(true) {
   init();
-  RCLCPP_INFO(logger_, "obcameranode constructor end.");
+  RCLCPP_DEBUG(logger_, "obcameranode constructor end.");
 }
 
 OBCameraNode::~OBCameraNode() { 
-  RCLCPP_INFO(logger_, "ob_camera_node destructor.");
+  RCLCPP_DEBUG(logger_, "ob_camera_node destructor.");
   clean(); 
   }
 
 void OBCameraNode::clean() {
-  RCLCPP_INFO(logger_, "ob_camera_node clean.");
+  RCLCPP_DEBUG(logger_, "ob_camera_node clean.");
   is_running_.store(false);
   if (tf_thread_->joinable()) {
     tf_thread_->join();
   }
-  RCLCPP_INFO(logger_, "before stop stream");
+  RCLCPP_DEBUG(logger_, "before stop stream");
   stopStreams();
-  RCLCPP_INFO(logger_, "after stop stream");
+  RCLCPP_DEBUG(logger_, "after stop stream");
   for (const auto& stream_index : IMAGE_STREAMS) {
     if (streams_[stream_index]) {
-      RCLCPP_INFO(logger_, "clean %s destroy", stream_name_[stream_index].c_str());
+      RCLCPP_DEBUG(logger_, "clean %s destroy", stream_name_[stream_index].c_str());
       try {
         // streams_[stream_index]->destroy();
       } catch(std::exception &e)
       {
         RCLCPP_INFO(logger_, "exception: %s",e.what());
       }
-      RCLCPP_INFO(logger_, "clean %s reset", stream_name_[stream_index].c_str());
+      RCLCPP_DEBUG(logger_, "clean %s reset", stream_name_[stream_index].c_str());
       // streams_[stream_index].reset();
-      RCLCPP_INFO(logger_, "clean %s reset end", stream_name_[stream_index].c_str());
+      RCLCPP_DEBUG(logger_, "clean %s reset end", stream_name_[stream_index].c_str());
     }
   }
 }
 
 void OBCameraNode::stopStreams() {
-  RCLCPP_INFO(logger_, "stream_.size(): %d", streams_.size());
+  RCLCPP_DEBUG(logger_, "stream_.size(): %d", streams_.size());
   for (const auto& stream_index : IMAGE_STREAMS) {
-    RCLCPP_INFO(logger_, "stream: %s", stream_name_[stream_index].c_str());
-    RCLCPP_INFO(logger_, "stream_started: %s", stream_started_[stream_index] ? "true" : "false");
+    RCLCPP_DEBUG(logger_, "stream: %s", stream_name_[stream_index].c_str());
+    RCLCPP_DEBUG(logger_, "stream_started: %s", stream_started_[stream_index] ? "true" : "false");
     if (stream_started_[stream_index]) {
-      RCLCPP_INFO(logger_, "stream %s stop", stream_name_[stream_index].c_str());
+      RCLCPP_DEBUG(logger_, "stream %s stop", stream_name_[stream_index].c_str());
       if(streams_[stream_index].get())
       {
-        RCLCPP_INFO(logger_, "not nullptr");
+        RCLCPP_DEBUG(logger_, "not nullptr");
       }
       
       try {
@@ -97,9 +97,9 @@ void OBCameraNode::stopStreams() {
         RCLCPP_INFO(logger_, "%s", e.what());
       }
 
-      RCLCPP_INFO(logger_, "stream_frame_listener_.size(): %d", stream_frame_listener_.size());
+      RCLCPP_DEBUG(logger_, "stream_frame_listener_.size(): %d", stream_frame_listener_.size());
       auto listener = stream_frame_listener_[stream_index];
-      RCLCPP_INFO(logger_, "stream_frame_listener_%s remove", stream_name_[stream_index].c_str());
+      RCLCPP_DEBUG(logger_, "stream_frame_listener_%s remove", stream_name_[stream_index].c_str());
       try{
         // streams_[stream_index]->removeNewFrameListener(listener.get());
       }catch (std::exception &e)
@@ -121,7 +121,7 @@ void OBCameraNode::stopStreams() {
 void OBCameraNode::setupDevices() {
   for (const auto& stream_index : IMAGE_STREAMS) {
     stream_started_[stream_index] = false;
-    RCLCPP_INFO(logger_, "setupDevices %s => enabled: %d, hasSensor: %d", stream_name_[stream_index].c_str(), 
+    RCLCPP_DEBUG(logger_, "setupDevices %s => enabled: %d, hasSensor: %d", stream_name_[stream_index].c_str(), 
                                   enable_[stream_index], device_->hasSensor(stream_index.first));
     if (enable_[stream_index] && device_->hasSensor(stream_index.first)) {
       auto stream = std::make_shared<openni::VideoStream>();
@@ -243,9 +243,9 @@ void OBCameraNode::startStreams() {
     setDepthToColorResolution(color_width, color_height);
   }
   for (const auto& stream_index : IMAGE_STREAMS) {
-    RCLCPP_INFO(logger_, "stream %s", stream_name_[stream_index].c_str());
-    RCLCPP_INFO(logger_, "enable_%s: %s", stream_name_[stream_index].c_str(), enable_[stream_index] ? "true" : "false");
-    RCLCPP_INFO(logger_, "stream_started: %s", stream_started_[stream_index] ? "true" : "false");
+    RCLCPP_DEBUG(logger_, "stream %s", stream_name_[stream_index].c_str());
+    RCLCPP_DEBUG(logger_, "enable_%s: %s", stream_name_[stream_index].c_str(), enable_[stream_index] ? "true" : "false");
+    RCLCPP_DEBUG(logger_, "stream_started: %s", stream_started_[stream_index] ? "true" : "false");
     if (enable_[stream_index] && !stream_started_[stream_index]) {
       CHECK(stream_video_mode_.count(stream_index));
       auto video_mode = stream_video_mode_.at(stream_index);
@@ -264,7 +264,7 @@ void OBCameraNode::startStreams() {
     
     uvc_camera_driver_->startStreaming();
   }
-  RCLCPP_INFO(logger_, "ob_camera_node start stream end");
+  RCLCPP_DEBUG(logger_, "ob_camera_node start stream end");
 }
 
 void OBCameraNode::setupConfig() {
@@ -307,7 +307,7 @@ void OBCameraNode::getParameters() {
     setAndGetNodeParameter(parameters_, fps_[stream_index], param_name, IMAGE_FPS);
     param_name = "enable_" + stream_name_[stream_index];
     setAndGetNodeParameter(parameters_, enable_[stream_index], param_name, false);
-    RCLCPP_INFO(logger_, "%s_enable: %d",stream_name_[stream_index].c_str(), enable_[stream_index]);
+    RCLCPP_DEBUG(logger_, "%s_enable: %d",stream_name_[stream_index].c_str(), enable_[stream_index]);
   }
   for (const auto& stream_index : IMAGE_STREAMS) {
     depth_aligned_frame_id_[stream_index] = optical_frame_id_[COLOR];
@@ -492,7 +492,7 @@ void OBCameraNode::onNewFrameCallback(const openni::VideoFrameRef& frame,
       depth_align_ ? depth_aligned_frame_id_[stream_index] : optical_frame_id_[stream_index];
 
   camera_info_publisher->publish(std::move(camera_info));
-  // RCLCPP_INFO(rclcpp::get_logger("camera"), "Camera pub time is %.10f", timestamp.seconds());
+  // RCLCPP_DEBUG(rclcpp::get_logger("camera"), "Camera pub time is %.10f", timestamp.seconds());
 
 }
 

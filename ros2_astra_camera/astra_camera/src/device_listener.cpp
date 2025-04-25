@@ -23,50 +23,50 @@ DeviceListener::DeviceListener(DeviceConnectedCb connected_cb, DeviceDisconnecte
       connected_cb_(std::move(connected_cb)),
       disconnected_cb_(std::move(disconnected_cb)) {
   openni::Status rc;
-  RCLCPP_INFO(logger_, "device listener constructor.");
+  RCLCPP_DEBUG(logger_, "device listener constructor.");
   openni::OpenNI::shutdown();
   rc = openni::OpenNI::initialize();
   if(rc == openni::STATUS_OK)
   {
-    RCLCPP_INFO_STREAM(logger_, "initialize() success. status: " << magic_enum::enum_name(rc));
+    RCLCPP_DEBUG_STREAM(logger_, "initialize() success. status: " << magic_enum::enum_name(rc));
   }
   else
   {
-    RCLCPP_INFO_STREAM(logger_, "initialize() fail. status: " << magic_enum::enum_name(rc));
+    RCLCPP_DEBUG_STREAM(logger_, "initialize() fail. status: " << magic_enum::enum_name(rc));
   }
   rc = openni::OpenNI::addDeviceConnectedListener(this);
   if(rc == openni::STATUS_OK)
   {
-    RCLCPP_INFO(logger_, "add device connected listener success.");
+    RCLCPP_DEBUG(logger_, "add device connected listener success.");
   }
   else
   {
-    RCLCPP_INFO(logger_, "add device connected listener fail.");
+    RCLCPP_DEBUG(logger_, "add device connected listener fail.");
   }
   rc = openni::OpenNI::addDeviceDisconnectedListener(this);
   if(rc == openni::STATUS_OK)
   {
-    RCLCPP_INFO(logger_, "add device dis_connected listener success.");
+    RCLCPP_DEBUG(logger_, "add device dis_connected listener success.");
   }
   else
   {
-    RCLCPP_INFO(logger_, "add device dis_connected listener fail.");
+    RCLCPP_DEBUG(logger_, "add device dis_connected listener fail.");
   }
   rc = openni::OpenNI::addDeviceStateChangedListener(this);
   if(rc == openni::STATUS_OK)
   {
-    RCLCPP_INFO(logger_, "add device status changed listener success.");
+    RCLCPP_DEBUG(logger_, "add device status changed listener success.");
   }
   else
   {
-    RCLCPP_INFO(logger_, "add device status changed listener fail.");
+    RCLCPP_DEBUG(logger_, "add device status changed listener fail.");
   }
   // get list of currently connected devices
   openni::Array<openni::DeviceInfo> device_info_list;
   openni::OpenNI::enumerateDevices(&device_info_list);
-  RCLCPP_INFO(logger_, "device number: %d", device_info_list.getSize());
+  RCLCPP_DEBUG(logger_, "device number: %d", device_info_list.getSize());
   for (int i = 0; i < device_info_list.getSize(); ++i) {
-    RCLCPP_INFO(logger_, "device uri: %s", device_info_list[i].getUri());
+    RCLCPP_DEBUG(logger_, "device uri: %s", device_info_list[i].getUri());
     onDeviceConnected(&device_info_list[i]);
   }
 }
@@ -84,13 +84,13 @@ void DeviceListener::onDeviceStateChanged(const openni::DeviceInfo* device_info,
 }
 
 void DeviceListener::onDeviceConnected(const openni::DeviceInfo* device_info) {
-  RCLCPP_INFO_STREAM(logger_, "onDeviceConnected");
+  RCLCPP_DEBUG_STREAM(logger_, "onDeviceConnected");
 
   connected_cb_(device_info);
 }
 
 void DeviceListener::onDeviceDisconnected(const openni::DeviceInfo* device_info) {
-  RCLCPP_INFO_STREAM(logger_, "onDeviceDisconnected");
+  RCLCPP_DEBUG_STREAM(logger_, "onDeviceDisconnected");
   disconnected_cb_(device_info);
 }
 

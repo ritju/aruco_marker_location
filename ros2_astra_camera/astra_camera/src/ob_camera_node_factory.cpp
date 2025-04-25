@@ -61,13 +61,13 @@ void OBCameraNodeFactory::init() {
   if(device_listener_)
   {
     device_listener_.release();
-    RCLCPP_INFO(logger_, "====device_listener release");
+    RCLCPP_DEBUG(logger_, "====device_listener release");
   }
   
   device_listener_ = std::make_unique<DeviceListener>(connected_cb, disconnected_cb);
   if(device_listener_)
   {
-    RCLCPP_INFO(logger_, "****device_listener exists.");
+    RCLCPP_DEBUG(logger_, "****device_listener exists.");
   }
   using namespace std::chrono_literals;
   connecting_ = false;
@@ -92,41 +92,41 @@ T OBCameraNodeFactory::declare_parameter_if_not_declared(const std::string& name
 void OBCameraNodeFactory::startDevice() {
   RCLCPP_INFO_STREAM(logger_, "starting device " << serial_number_);
   if (ob_camera_node_) {
-    RCLCPP_INFO(logger_, "has ob_camera_node_");
+    RCLCPP_DEBUG(logger_, "has ob_camera_node_");
     // ob_camera_node_.reset();
     // ob_camera_node_ = NULL;
   }
-  RCLCPP_INFO(logger_, "check device_");
+  RCLCPP_DEBUG(logger_, "check device_");
   CHECK_NOTNULL(device_);
-  RCLCPP_INFO(logger_, "check parameters_");
+  RCLCPP_DEBUG(logger_, "check parameters_");
   CHECK_NOTNULL(parameters_);
   if (use_uvc_camera_) {
-    RCLCPP_INFO(logger_, "use uvc_camera_driver_");
+    RCLCPP_DEBUG(logger_, "use uvc_camera_driver_");
     if (uvc_camera_driver_) {
       uvc_camera_driver_.reset();
-      RCLCPP_INFO(logger_, "reset uvc_camera_driver_");
+      RCLCPP_DEBUG(logger_, "reset uvc_camera_driver_");
     }
-    RCLCPP_INFO(logger_, "assign uvc_camera_driver_");
+    RCLCPP_DEBUG(logger_, "assign uvc_camera_driver_");
     uvc_camera_driver_ = std::make_shared<UVCCameraDriver>(this, parameters_, serial_number_);
-    RCLCPP_INFO(logger_, "assign ob_camera_node_");
+    RCLCPP_DEBUG(logger_, "assign ob_camera_node_");
     auto ptr_old = ob_camera_node_.release();
     // delete ptr_old;
     ob_camera_node_ =
         std::make_unique<OBCameraNode>(this, device_, parameters_, uvc_camera_driver_);
   } else {
-    RCLCPP_INFO(logger_, "not use uvc_camera_driver_");
+    RCLCPP_DEBUG(logger_, "not use uvc_camera_driver_");
     ob_camera_node_ = std::make_unique<OBCameraNode>(this, device_, parameters_);
   }
   device_connected_ = true;
   if (is_first_connection_) {
     is_first_connection_ = false;
-    RCLCPP_INFO_STREAM(logger_, "first connection");
+    RCLCPP_DEBUG_STREAM(logger_, "first connection");
   }
-  RCLCPP_INFO(logger_, "start_device end.");
+  RCLCPP_DEBUG(logger_, "start_device end.");
 }
 
 void OBCameraNodeFactory::onDeviceConnected(const openni::DeviceInfo* device_info) {
-  RCLCPP_INFO_STREAM(logger_, "Device connected: " << device_info->getName());
+  RCLCPP_DEBUG_STREAM(logger_, "Device connected: " << device_info->getName());
   if (device_info->getUri() == nullptr) {
     RCLCPP_ERROR_STREAM(logger_, "Device connected: " << device_info->getName() << " uri is null");
     return;
@@ -136,11 +136,11 @@ void OBCameraNodeFactory::onDeviceConnected(const openni::DeviceInfo* device_inf
     RCLCPP_ERROR(logger_, "Failed to create semaphore");
     return;
   }
-  RCLCPP_INFO_STREAM(logger_, "Waiting for device to be ready");
+  RCLCPP_DEBUG_STREAM(logger_, "Waiting for device to be ready");
   int ret = sem_wait(device_sem);
   if (!ret && !connected_devices_.count(device_info->getUri())) {
     auto device = std::make_shared<openni::Device>();
-    RCLCPP_INFO_STREAM(logger_, "Trying to open device: " << device_info->getUri());
+    RCLCPP_DEBUG_STREAM(logger_, "Trying to open device: " << device_info->getUri());
     int cur_number = 0;
     openni::Status rc;
     do {
@@ -150,12 +150,12 @@ void OBCameraNodeFactory::onDeviceConnected(const openni::DeviceInfo* device_inf
         break;
       usleep(depth_reconnection_delay_);
     } while(cur_number <= depth_try_number_);
-    RCLCPP_INFO(logger_, "try %d times to open device successfully.", cur_number);
+    RCLCPP_DEBUG(logger_, "try %d times to open device successfully.", cur_number);
     if (rc != openni::STATUS_OK) {
       RCLCPP_ERROR_STREAM(logger_, "Failed to open device: " << device_info->getUri() << " error: "
                                                              << openni::OpenNI::getExtendedError());
-      RCLCPP_INFO(logger_, "openni::STATUS: %X", rc); 
-      RCLCPP_INFO(logger_, "errno: %d", errno);
+      RCLCPP_DEBUG(logger_, "openni::STATUS: %X", rc); 
+      RCLCPP_DEBUG(logger_, "errno: %d", errno);
       if (errno == EBUSY) {
         RCLCPP_ERROR_STREAM(logger_, "Device is already opened OR device is in use");
         connected_devices_[device_info->getUri()] = *device_info;
@@ -183,18 +183,18 @@ void OBCameraNodeFactory::onDeviceConnected(const openni::DeviceInfo* device_inf
       }
       else
       {
-        RCLCPP_INFO(logger_, "dst serialnumber: %s", serial_number_.c_str());
-        RCLCPP_INFO(logger_, "cur serialnumber: %s", serial_number);
+        RCLCPP_DEBUG(logger_, "dst serialnumber: %s", serial_number_.c_str());
+        RCLCPP_DEBUG(logger_, "cur serialnumber: %s", serial_number);
       }
     }
     if (!device_connected_) {
-      RCLCPP_INFO(logger_, "close device.");
+      RCLCPP_DEBUG(logger_, "close device.");
       device->close();
     }
   }
-  RCLCPP_INFO_STREAM(logger_, "Release device semaphore");
+  RCLCPP_DEBUG_STREAM(logger_, "Release device semaphore");
   sem_post(device_sem);
-  RCLCPP_INFO_STREAM(logger_, "Release device semaphore done");
+  RCLCPP_DEBUG_STREAM(logger_, "Release device semaphore done");
   if (connected_devices_.size() == number_of_devices_) {
     RCLCPP_INFO_STREAM(logger_, "All devices connected");
     sem_unlink(DEFAULT_SEM_NAME.c_str());
@@ -202,7 +202,7 @@ void OBCameraNodeFactory::onDeviceConnected(const openni::DeviceInfo* device_inf
 }
 
 void OBCameraNodeFactory::onDeviceDisconnected(const openni::DeviceInfo* device_info) {
-  RCLCPP_INFO(logger_, "onDeviceDisconnected callback.");
+  RCLCPP_DEBUG(logger_, "onDeviceDisconnected callback.");
   if (device_uri_ == device_info->getUri()) {
     device_uri_.clear();
     if (ob_camera_node_) {
@@ -223,7 +223,7 @@ void OBCameraNodeFactory::onDeviceDisconnected(const openni::DeviceInfo* device_
 
 void OBCameraNodeFactory::checkConnectionTimer() {
   if (!device_connected_) {
-    RCLCPP_INFO_STREAM(logger_, "wait for device connect... ");
+    RCLCPP_INFO_THROTTLE(logger_, *get_clock(), 2000, "wait for device connect... ");
   }
 }
 
@@ -242,12 +242,12 @@ void OBCameraNodeFactory::checkConnection() {
     {
       bus_code = "0" + bus_code;
     }
-    // RCLCPP_INFO(logger_, "bus_code: %s", bus_code.c_str());
+    // RCLCPP_DEBUG(logger_, "bus_code: %s", bus_code.c_str());
 
     if(!std::filesystem::exists("/dev/bus/usb/001/"+bus_code))
     {
       connecting_ = true;
-      RCLCPP_INFO_STREAM(logger_, "off line number: " << ++number_off_ << "\n");
+      RCLCPP_DEBUG_STREAM(logger_, "off line number: " << ++number_off_ << "\n");
       if (std::filesystem::exists("/dev/shm/sem." + DEFAULT_SEM_NAME)) {
         sem_unlink(DEFAULT_SEM_NAME.c_str());
       }
@@ -257,12 +257,12 @@ void OBCameraNodeFactory::checkConnection() {
         device_.reset();
       }
       init();
-      // RCLCPP_INFO_STREAM(logger_, "-------------------\n");
+      // RCLCPP_DEBUG_STREAM(logger_, "-------------------\n");
     }
     else
     {       
-      // RCLCPP_INFO_STREAM(logger_, "ok ");
-      // RCLCPP_INFO_STREAM(logger_, "\n");
+      // RCLCPP_DEBUG_STREAM(logger_, "ok ");
+      // RCLCPP_DEBUG_STREAM(logger_, "\n");
     }
     if(!connecting_)
     {
