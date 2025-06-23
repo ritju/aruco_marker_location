@@ -27,15 +27,6 @@ def duplicate_params(general_params, posix, serial_number):
     local_params["serial_number"] = serial_number
     return local_params
 
-# MK4
-# serial_number1 = "CH2R73100JN" #front-up CH2R73100ES
-# serial_number2 = "CH282310048" #front-down
-# serial_number3 = "CH2B53100KR" #back
-
-# MK5
-# serial_number1 = "CH2B531000D" #front-up CH2R73100ES
-# serial_number2 = "CH2B531001V" #front-down
-# serial_number3 = "CH2B531001S" #back
 try:
     if 'CAMERA1_NUMBER' and 'CAMERA2_NUMBER' and "CAMERA3_NUMBER" in os.environ:
         camera_1 = os.environ.get('CAMERA1_NUMBER')
