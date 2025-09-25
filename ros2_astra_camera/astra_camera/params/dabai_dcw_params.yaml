@@ -5,6 +5,16 @@ color_height: 360 # RGB高
 color_fps: 5 # RGB帧率
 enable_color: true #  RGB开关
 
+color.image_raw.image_transport_plugins:
+  # - "image_transport/ffmpeg"
+  - "image_transport/image_raw"
+depth.image_raw.image_transport_plugins:
+  # - "image_transport/ffmpeg"
+  - "image_transport/raw"
+ir.image_raw.image_transport_plugins:
+  # - "image_transport/ffmpeg"
+  - "image_transport/raw"
+
 # IR相机宽/高/帧率 | IR camera width/height/FPS
 ir_width: 640 
 ir_height: 360
